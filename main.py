@@ -4,6 +4,7 @@
 import pygame as pg
 from pygame import sprite
 from pprint import pprint
+from itertools import cycle
 
 
 # for field
@@ -27,9 +28,9 @@ def get_closer_center(x, y):
     return round(x / BLOCK_WIDTH) * BLOCK_WIDTH, round(y / BLOCK_HEIGHT) * BLOCK_HEIGHT
 
 class Block(sprite.Sprite):
-    def __init__(self, x, y, sprites=None, sprite_tile=None):
-        sprite.Sprite.__init__(self)
-        # super().__init__()
+    def __init__(self, x, y, sprites=None, sprites_tile=None):
+        # sprite.Sprite.__init__(self)
+        super().__init__()
         self.image = pg.Surface((BLOCK_WIDTH, BLOCK_HEIGHT))
         self.image.fill(pg.Color(BLOCK_COLOR))
         self.rect = pg.Rect(x, y, BLOCK_WIDTH, BLOCK_HEIGHT)
@@ -40,15 +41,18 @@ class Block(sprite.Sprite):
 class WallBlock(Block):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.image = ss.image_at((BLOCK_WIDTH * 3,
-        #                             BLOCK_HEIGHT * 3,
-        #                             BLOCK_WIDTH,
-        #                             BLOCK_HEIGHT))
+        if "sprites_tile" in kwargs:
+            self.image = kwargs["sprites_tile"][3][3]
 
     def __repr__(self):
         return f"X{self.rect.x // BLOCK_WIDTH, self.rect.y // BLOCK_HEIGHT}"
 
 class BrickBlock(Block):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "sprites_tile" in kwargs:
+            self.image = kwargs["sprites_tile"][3][4]
+
     def __repr__(self):
         return f"#{self.rect.x // BLOCK_WIDTH, self.rect.y // BLOCK_HEIGHT}"
 
@@ -58,16 +62,20 @@ class Bomb(Block):
 
 
 class Player(sprite.Sprite):
-    def __init__(self, x, y, image=None):
+    def __init__(self, x, y, sprites_tile=None):
         sprite.Sprite.__init__(self)
         self.xvel = self.yvel = 0
-        if image is None:
+        self.anim_right = self.anim_left = self.anim_up = self.anim_down = self.anim_die = self.static_image = None
+        if sprites_tile is None:
             self.image = pg.Surface((WIDTH, HEIGHT))
             self.image.fill(pg.Color(COLOR))
-        elif isinstance(image, pg.Surface):
-            self.image = image
         else:
-            pass
+            self.image = self.static_image = sprites_tile[0][4]
+            self.anim_right = cycle(sprites_tile[1][0:3])
+            self.anim_left = cycle(sprites_tile[0][0:3])
+            self.anim_up = cycle(sprites_tile[1][3:6])
+            self.anim_down = cycle(sprites_tile[0][3:6])
+            self.anim_die = cycle(sprites_tile[2][:7])
         self.rect = pg.Rect(x, y, WIDTH, HEIGHT)
 
     def update(self, horizontal, vertical):
@@ -81,6 +89,17 @@ class Player(sprite.Sprite):
         # if not vertical:
         self.xvel = horizontal
         self.yvel = vertical
+
+        if horizontal > 0:
+            self.image = next(self.anim_right)
+        elif horizontal < 0:
+            self.image = next(self.anim_left)
+        elif vertical > 0:
+            self.image = next(self.anim_down)
+        elif vertical < 0:
+            self.image = next(self.anim_up)
+        else:
+            self.image = self.static_image
 
         # if self.xvel > 0:
         #     self.image.fill(pg.Color(COLOR))
@@ -133,7 +152,7 @@ class Player(sprite.Sprite):
 
 
     def draw(self, screen):
-        screen.blit(self.image, (self.rect.x,self.rect.y))
+        screen.blit(self.image, self.rect)
 
 
 class SpriteSheet:
@@ -198,29 +217,26 @@ def main():
     bg = pg.Surface((WIN_WIDTH, WIN_HEIGHT))
 
     ss = SpriteSheet('./media/sprites_hq.png')
-    sprite_images = ss.load_table((0, 0, BLOCK_WIDTH, BLOCK_HEIGHT), 14, 12)
+    sprites_tile = ss.load_table((0, 0, BLOCK_WIDTH, BLOCK_HEIGHT), 14, 12)
 
     bg.fill(pg.Color(BACKGROUND_COLOR))
 
     sprites_group = sprite.Group()
-    blocks = []
+    # blocks = []
     x = y = BLOCK_WIDTH
     for row in demo_field:
         for cell in row:
             if cell:
-                block = WallBlock(x, y, sprites=None)
+                block = WallBlock(x, y, sprites_tile=sprites_tile)
                 if cell[0] == 'B':
-                    block = BrickBlock(x, y, sprites=None)
+                    block = BrickBlock(x, y, sprites_tile=sprites_tile)
                 sprites_group.add(block)
-                blocks.append(block)
+                # blocks.append(block)
             x += BLOCK_WIDTH
         y += BLOCK_HEIGHT
         x = BLOCK_WIDTH
-    player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 5, image=ss.image_at((BLOCK_WIDTH * 4,
-                                                                                   BLOCK_HEIGHT * 0,
-                                                                                   BLOCK_WIDTH,
-                                                                                   BLOCK_HEIGHT)))
-    sprites_group.add(player)
+    player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 5, sprites_tile=sprites_tile)
+    # sprites_group.add(player)
 
     horizontal = vertical = 0
     action = False
@@ -249,22 +265,23 @@ def main():
                     vertical = 0
 
 
-        ret = player.update(horizontal, vertical, action, blocks)
+        ret = player.update(horizontal, vertical, action, sprites_group)
+        sprites_group.update()
         if ret:
             sprites_group.add(ret)
-            blocks.append(ret)
 
         action = False
 
-        player.draw(screen)
         screen.blit(bg, (0, 0))
         sprites_group.draw(screen)
+        player.draw(screen)
 
-        # for i, strip in enumerate(sprite_images):
+
+        # for i, strip in enumerate(sprites_tile):
         #     for j, image in enumerate(strip):
         #         screen.blit(image, (j*BLOCK_WIDTH, i*BLOCK_HEIGHT))
 
-        # screen.blit(sprite_images[0][5], (0, 0))
+        screen.blit(sprites_tile[0][5], (0, 0))
 
         pg.display.update()
         timer.tick(30)
