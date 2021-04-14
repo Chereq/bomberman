@@ -5,13 +5,13 @@ import pygame as pg
 from pygame import sprite
 from pprint import pprint
 from itertools import cycle
-
+from random import randint
 
 # for field
 BLOCK_WIDTH = 64
 BLOCK_HEIGHT = 64
-WIN_WIDTH = BLOCK_WIDTH * 5#13
-WIN_HEIGHT = BLOCK_HEIGHT * 5#13
+WIN_WIDTH = BLOCK_WIDTH * 8#13
+WIN_HEIGHT = BLOCK_HEIGHT * 8#13
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
 BACKGROUND_COLOR = "#388700"  #"#101010"
 BLOCK_COLOR = "#b0b0b0"
@@ -151,7 +151,7 @@ class Explosion(Block):
 
         self.anim_static, self.images_inner, self.images_otter = self.get_rays_images(kwargs["sprites_tile"])
 
-        self.splash_group = sprite.Group()
+        self.splash_group = SpriteGroup()
 
     def get_rays_images(self, sprites_tile):
         centers = (6,2),(6,7),(11,2),(11,7)
@@ -200,36 +200,36 @@ class Explosion(Block):
             for distance in range(self.radius):
                 sprite_left = sprite.Sprite()
                 sprite_left.image = images_inner[0]
-                sprite_left.rect = self.rect.x - BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+                sprite_left.rect = pg.Rect(self.rect.x - BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT)
                 self.splash_group.add(sprite_left)
                 sprite_right = sprite.Sprite()
                 sprite_right.image = images_inner[1]
-                sprite_right.rect = self.rect.x + BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+                sprite_right.rect = pg.Rect(self.rect.x + BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT)
                 self.splash_group.add(sprite_right)
                 sprite_up = sprite.Sprite()
                 sprite_up.image = images_inner[2]
-                sprite_up.rect = self.rect.x, self.rect.y - BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT
+                sprite_up.rect = pg.Rect(self.rect.x, self.rect.y - BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT)
                 self.splash_group.add(sprite_up)
                 sprite_down = sprite.Sprite()
                 sprite_down.image = images_inner[3]
-                sprite_down.rect = self.rect.x, self.rect.y + BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT
+                sprite_down.rect = pg.Rect(self.rect.x, self.rect.y + BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT)
                 self.splash_group.add(sprite_down)
 
             sprite_left = sprite.Sprite()
             sprite_left.image = images_otter[0]
-            sprite_left.rect = self.rect.x - BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+            sprite_left.rect = pg.Rect(self.rect.x - BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT)
             self.splash_group.add(sprite_left)
             sprite_right = sprite.Sprite()
             sprite_right.image = images_otter[1]
-            sprite_right.rect = self.rect.x + BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+            sprite_right.rect = pg.Rect(self.rect.x + BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT)
             self.splash_group.add(sprite_right)
             sprite_up = sprite.Sprite()
             sprite_up.image = images_otter[2]
-            sprite_up.rect = self.rect.x, self.rect.y - BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT
+            sprite_up.rect = pg.Rect(self.rect.x, self.rect.y - BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT)
             self.splash_group.add(sprite_up)
             sprite_down = sprite.Sprite()
             sprite_down.image = images_otter[3]
-            sprite_down.rect = self.rect.x, self.rect.y + BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT
+            sprite_down.rect = pg.Rect(self.rect.x, self.rect.y + BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT)
             self.splash_group.add(sprite_down)
 
 
@@ -406,6 +406,25 @@ demo_field = [
     [["#"]] * 11
               ]
 
+class SpriteGroup(sprite.Group):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.view_shift = 0, 0
+
+    def set_view_shift(self, x, y):
+        self.view_shift = x, y
+
+    def draw(self, surface):
+        # super().draw(surface)
+        sprites = self.sprites()
+        surface_blit = surface.blit
+        for spr in sprites:
+            rect = spr.rect.copy()
+            rect.x += self.view_shift[0]
+            rect.y += self.view_shift[1]
+            self.spritedict[spr] = surface_blit(spr.image, rect)
+        self.lostsprites = []
+
 
 def main():
     pg.init()
@@ -419,11 +438,11 @@ def main():
 
     bg.fill(pg.Color(BACKGROUND_COLOR))
 
-    blocks_group = sprite.Group()
-    bombs_group = sprite.Group()
-    explosions_group = sprite.Group()
-    actors_group = sprite.Group()
-    # test_group = sprite.Group()
+    blocks_group = SpriteGroup()
+    bombs_group = SpriteGroup()
+    explosions_group = SpriteGroup()
+    actors_group = SpriteGroup()
+    # test_group = SpriteGroup()
     # blocks = []
     x = y = BLOCK_WIDTH
     for row in demo_field:
@@ -483,6 +502,8 @@ def main():
             bomb = Bomb(*ret, sprites_tile=sprites_tile)
             bombs_group.add(bomb)
 
+        cam_shift = 0, 0
+
         for bomb in bombs_group:
             if bomb.is_exploded():
                 explosion = bomb.get_explosion()
@@ -493,14 +514,19 @@ def main():
 
         for explosion in explosions_group:
             splash_group = explosion.get_splash_group()
+            splash_group.set_view_shift(*cam_shift)
+            cam_shift = randint(-1, 1), randint(-1, 1)
             splash_group.draw(screen)
 
-            # for splash_sprite in splash_group:
-                # explosions_group.add(splash_sprite)
             if explosion.fired():
                 explosion.kill()
 
         action = False
+
+        blocks_group.set_view_shift(*cam_shift)
+        bombs_group.set_view_shift(*cam_shift)
+        explosions_group.set_view_shift(*cam_shift)
+        actors_group.set_view_shift(*cam_shift)
 
         blocks_group.draw(screen)
         bombs_group.draw(screen)
