@@ -62,8 +62,10 @@ class BrickBlock(Block):
 class Bomb(Block):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.sprites_tile = kwargs["sprites_tile"]
         self.image = kwargs["sprites_tile"][3][0]
-        self.countdown = 3
+        self.countdown = 1
+        self.radius = 1
         self.animation_rate = ANIMATION_RATE / (self.countdown + .5)
         self.animation_timeout = 0
         self.anim_static = cycle(kwargs["sprites_tile"][3][0:3] + kwargs["sprites_tile"][3][2:-1:-1])
@@ -83,16 +85,123 @@ class Bomb(Block):
     def get_epicenter(self):
         return self.rect.x, self.rect.y
 
+    def get_explosion(self):
+        return Explosion(*self.get_epicenter(), sprites_tile=self.sprites_tile, radius=self.radius)
+
 
 class Explosion(Block):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
+
         self.radius = 1
-        self.blast_speed = 5
+        if "radius" in kwargs:
+            self.radius = kwargs["radius"]
+        self.blast_speed = 10
         self.ray_power = 1
+        self.time = 0
+
+        self.anim_static = [kwargs["sprites_tile"][6][2],
+                            kwargs["sprites_tile"][6][7],
+                            kwargs["sprites_tile"][11][2],
+                            kwargs["sprites_tile"][11][7]]
+
+        self.anim_static += self.anim_static[::-1]
+        self.image = self.static_image = kwargs["sprites_tile"][6][2]
+
+        self.anim_static, self.images_inner, self.images_otter = self.get_rays_images(kwargs["sprites_tile"])
+
+        self.splash_group = sprite.Group()
+
+    def get_rays_images(self, sprites_tile):
+        centers = (6,2),(6,7),(11,2),(11,7)
+        images_inner = []
+        images_otter = []
+        images_center = []
+        for x, y in centers:
+            images_center.append(sprites_tile[x][y])
+            images_inner.append(
+                (sprites_tile[x][y - 1],
+                sprites_tile[x][y + 1],
+                sprites_tile[x - 1][y],
+                sprites_tile[x + 1][y]))
+            
+            images_otter.append(
+                (sprites_tile[x][y - 2],
+                sprites_tile[x][y + 2],
+                sprites_tile[x - 2][y],
+                sprites_tile[x + 2][y]))
+
+        images_center += images_center[::-1]
+        images_inner += images_inner[::-1]
+        images_otter += images_otter[::-1]
+
+        return images_center, images_inner, images_otter
 
     def update(self, time):
-        pass
+        self.time += time
+        if not self.anim_static:
+            self.image = self.static_image
+            self.splash_group.empty()
+            return
+
+        if self.time / 1000 >= 1 / self.blast_speed:
+            self.time = 0
+            self.image = self.anim_static.pop()
+
+            images_otter = self.images_otter.pop()
+            images_inner = self.images_inner.pop()
+
+            self.splash_group.empty()
+
+            for distance in range(self.radius):
+                sprite_left = sprite.Sprite()
+                sprite_left.image = images_inner[0]
+                sprite_left.rect = self.rect.x - BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+                self.splash_group.add(sprite_left)
+                sprite_right = sprite.Sprite()
+                sprite_right.image = images_inner[1]
+                sprite_right.rect = self.rect.x + BLOCK_WIDTH * distance, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+                self.splash_group.add(sprite_right)
+                sprite_up = sprite.Sprite()
+                sprite_up.image = images_inner[2]
+                sprite_up.rect = self.rect.x, self.rect.y - BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT
+                self.splash_group.add(sprite_up)
+                sprite_down = sprite.Sprite()
+                sprite_down.image = images_inner[3]
+                sprite_down.rect = self.rect.x, self.rect.y + BLOCK_HEIGHT * distance, BLOCK_WIDTH, BLOCK_HEIGHT
+                self.splash_group.add(sprite_down)
+
+            sprite_left = sprite.Sprite()
+            sprite_left.image = images_otter[0]
+            sprite_left.rect = self.rect.x - BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+            self.splash_group.add(sprite_left)
+            sprite_right = sprite.Sprite()
+            sprite_right.image = images_otter[1]
+            sprite_right.rect = self.rect.x + BLOCK_WIDTH * self.radius, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+            self.splash_group.add(sprite_right)
+            sprite_up = sprite.Sprite()
+            sprite_up.image = images_otter[2]
+            sprite_up.rect = self.rect.x, self.rect.y - BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT
+            self.splash_group.add(sprite_up)
+            sprite_down = sprite.Sprite()
+            sprite_down.image = images_otter[3]
+            sprite_down.rect = self.rect.x, self.rect.y + BLOCK_HEIGHT * self.radius, BLOCK_WIDTH, BLOCK_HEIGHT
+            self.splash_group.add(sprite_down)
+
+
+    def get_splash_group(self):
+        return self.splash_group
+        # splash_sprite = sprite.Sprite()
+        # splash_sprite.image = self.images_inner[0]
+        # splash_sprite.rect = self.rect.x - BLOCK_WIDTH, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
+        # return (splash_sprite,)
+        # return (self.rect.x - BLOCK_WIDTH, self.rect.y - BLOCK_HEIGHT), \
+        #        (self.rect.x - BLOCK_WIDTH, self.rect.y + BLOCK_HEIGHT), \
+        #        (self.rect.x + BLOCK_WIDTH, self.rect.y + BLOCK_HEIGHT), \
+        #        (self.rect.x + BLOCK_WIDTH, self.rect.y - BLOCK_HEIGHT)
+
+    def fired(self):
+        return not self.anim_static
 
 
 class Actor(sprite.Sprite):
@@ -248,6 +357,7 @@ def main():
     bombs_group = sprite.Group()
     explosions_group = sprite.Group()
     actors_group = sprite.Group()
+    test_group = sprite.Group()
     # blocks = []
     x = y = BLOCK_WIDTH
     for row in demo_field:
@@ -261,7 +371,7 @@ def main():
             x += BLOCK_WIDTH
         y += BLOCK_HEIGHT
         x = BLOCK_WIDTH
-    player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 5, sprites_tile=sprites_tile)
+    player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 6.5, sprites_tile=sprites_tile)
     # sprites_group.add(player)
 
     horizontal = vertical = 0
@@ -300,23 +410,35 @@ def main():
         bombs_group.update(milliseconds)
         explosions_group.update(milliseconds)
 
+        screen.blit(bg, (0, 0))
+
         if ret:# and not bombs_group:
             bomb = Bomb(*ret, sprites_tile=sprites_tile)
             bombs_group.add(bomb)
 
         for bomb in bombs_group:
             if bomb.is_exploded():
-                epicenter = bomb.get_epicenter()
+                explosion = bomb.get_explosion()
+                # epicenter = bomb.get_epicenter()
                 bomb.kill()
-                explosion = Explosion(*epicenter)
+                # explosion = Explosion(*epicenter, sprites_tile=sprites_tile)
                 explosions_group.add(explosion)
+
+        for explosion in explosions_group:
+            splash_group = explosion.get_splash_group()
+            splash_group.draw(screen)
+
+            # for splash_sprite in splash_group:
+                # explosions_group.add(splash_sprite)
+            if explosion.fired():
+                explosion.kill()
 
         action = False
 
-        screen.blit(bg, (0, 0))
         sprites_group.draw(screen)
         bombs_group.draw(screen)
         explosions_group.draw(screen)
+        test_group.draw(screen)
         player.draw(screen)
 
 
