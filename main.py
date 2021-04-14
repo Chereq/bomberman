@@ -137,8 +137,11 @@ class Explosion(Block):
 
         return images_center, images_inner, images_otter
 
-    def update(self, time):
+    def update(self, time, interact_with=None):
         self.time += time
+
+        self.collide(interact_with)
+
         if not self.anim_static:
             self.image = self.static_image
             self.splash_group.empty()
@@ -191,17 +194,23 @@ class Explosion(Block):
 
     def get_splash_group(self):
         return self.splash_group
-        # splash_sprite = sprite.Sprite()
-        # splash_sprite.image = self.images_inner[0]
-        # splash_sprite.rect = self.rect.x - BLOCK_WIDTH, self.rect.y, BLOCK_WIDTH, BLOCK_HEIGHT
-        # return (splash_sprite,)
-        # return (self.rect.x - BLOCK_WIDTH, self.rect.y - BLOCK_HEIGHT), \
-        #        (self.rect.x - BLOCK_WIDTH, self.rect.y + BLOCK_HEIGHT), \
-        #        (self.rect.x + BLOCK_WIDTH, self.rect.y + BLOCK_HEIGHT), \
-        #        (self.rect.x + BLOCK_WIDTH, self.rect.y - BLOCK_HEIGHT)
 
     def fired(self):
         return not self.anim_static
+
+    def collide(self, list_of_sprites_group):
+
+        death_note = []
+
+        for sprites_group in list_of_sprites_group:
+            print(123, self.splash_group, sprites_group)
+            try:
+                sprite.groupcollide(self.splash_group, sprites_group, False, False)
+            except AttributeError as e:
+                print(e)
+            # collide_list = sprite.groupcollide(self.splash_group, sprites_group, False, False)
+            # for collision in collide_list:
+                # print(collision)
 
 
 class Actor(sprite.Sprite):
@@ -353,7 +362,7 @@ def main():
 
     bg.fill(pg.Color(BACKGROUND_COLOR))
 
-    sprites_group = sprite.Group()
+    blocks_group = sprite.Group()
     bombs_group = sprite.Group()
     explosions_group = sprite.Group()
     actors_group = sprite.Group()
@@ -366,13 +375,12 @@ def main():
                 block = WallBlock(x, y, sprites_tile=sprites_tile)
                 if cell[0] == 'B':
                     block = BrickBlock(x, y, sprites_tile=sprites_tile)
-                sprites_group.add(block)
+                blocks_group.add(block)
                 # blocks.append(block)
             x += BLOCK_WIDTH
         y += BLOCK_HEIGHT
         x = BLOCK_WIDTH
     player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 6.5, sprites_tile=sprites_tile)
-    # sprites_group.add(player)
 
     horizontal = vertical = 0
     action = False
@@ -404,11 +412,11 @@ def main():
                     vertical = 0
 
 
-        ret = player.update(horizontal, vertical, action, (sprites_group, bombs_group, actors_group), time=milliseconds)
-        sprites_group.update(milliseconds)
+        ret = player.update(horizontal, vertical, action, (blocks_group, bombs_group, actors_group), time=milliseconds)
+        blocks_group.update(milliseconds)
         actors_group.update(milliseconds)
         bombs_group.update(milliseconds)
-        explosions_group.update(milliseconds)
+        explosions_group.update(interact_with=(blocks_group, actors_group), time=milliseconds)
 
         screen.blit(bg, (0, 0))
 
@@ -435,7 +443,7 @@ def main():
 
         action = False
 
-        sprites_group.draw(screen)
+        blocks_group.draw(screen)
         bombs_group.draw(screen)
         explosions_group.draw(screen)
         test_group.draw(screen)
