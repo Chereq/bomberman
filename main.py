@@ -10,8 +10,8 @@ from itertools import cycle
 # for field
 BLOCK_WIDTH = 64
 BLOCK_HEIGHT = 64
-WIN_WIDTH = BLOCK_WIDTH * 13
-WIN_HEIGHT = BLOCK_HEIGHT * 15
+WIN_WIDTH = BLOCK_WIDTH * 5#13
+WIN_HEIGHT = BLOCK_HEIGHT * 5#13
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
 BACKGROUND_COLOR = "#388700"  #"#101010"
 BLOCK_COLOR = "#b0b0b0"
@@ -25,6 +25,34 @@ ANIMATION_RATE = 10
 
 # 29 * 13
 
+class Camera(object):
+
+    def __init__(self, camera_func, width, height):
+        self.camera_func = camera_func
+        self.state = Rect(0, 0, width, height)
+
+    def apply(self, target):
+        return target.rect.move(self.state.topleft)
+
+    def update(self, target):
+        self.state = self.camera_func(self.state, target.rect)
+
+    def reverse(self, pos):
+        return pos[0] - self.state.left, pos[1] - self.state.top
+
+    @classmethod
+    def camera_configure(camera, target_rect):
+        l, t, _, _ = target_rect
+        _, _, w, h = camera
+        l, t = -l + WIN_WIDTH / 2, -t + WIN_HEIGHT / 2
+
+        l = min(0, l)
+        l = max(-(camera.width - WIN_WIDTH), l)
+        t = max(-(camera.height - WIN_HEIGHT), t)
+        t = min(0, t)
+
+        return pg.Rect(l, t, w, h)
+
 def get_closer_center(x, y):
     return round(x / BLOCK_WIDTH) * BLOCK_WIDTH, round(y / BLOCK_HEIGHT) * BLOCK_HEIGHT
 
@@ -35,12 +63,16 @@ class Block(sprite.Sprite):
         self.image = pg.Surface((BLOCK_WIDTH, BLOCK_HEIGHT))
         self.image.fill(pg.Color(BLOCK_COLOR))
         self.rect = pg.Rect(x, y, BLOCK_WIDTH, BLOCK_HEIGHT)
+        self.alive = True
 
     def __repr__(self):
         return "O"
 
     def update(self, time):
         super().update()
+
+    def exploded(self):
+        self.alive = False
 
 class WallBlock(Block):
     def __init__(self, *args, **kwargs):
@@ -59,13 +91,22 @@ class BrickBlock(Block):
     def __repr__(self):
         return f"#{self.rect.x // BLOCK_WIDTH, self.rect.y // BLOCK_HEIGHT}"
 
+    def update(self, time):
+        super().update(time)
+        if self.alive:
+            return
+        self.image = self.anim_die.pop(0)
+        if not self.anim_die:
+            self.kill()
+
+
 class Bomb(Block):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sprites_tile = kwargs["sprites_tile"]
         self.image = kwargs["sprites_tile"][3][0]
         self.countdown = 1
-        self.radius = 1
+        self.radius = 2
         self.animation_rate = ANIMATION_RATE / (self.countdown + .5)
         self.animation_timeout = 0
         self.anim_static = cycle(kwargs["sprites_tile"][3][0:3] + kwargs["sprites_tile"][3][2:-1:-1])
@@ -200,27 +241,42 @@ class Explosion(Block):
 
     def collide(self, list_of_sprites_group):
 
-        death_note = []
-
+        death_note = set()
+        collisions = []
         for sprites_group in list_of_sprites_group:
-            print(123, self.splash_group, sprites_group)
-            try:
-                sprite.groupcollide(self.splash_group, sprites_group, False, False)
-            except AttributeError as e:
-                print(e)
+            collisions += sprite.groupcollide(sprites_group, self.splash_group, False, False)
+        for collision in collisions:
+            collision.exploded()
+        # for sprite_group in list_of_sprites_group:
+        #     for sprite_ext in sprite_group:
+        #             collisions = sprite.spritecollide(sprite_ext, self.splash_group, False)
+        #             if collisions:
+        #                 print(collisions)
+        # print(list_of_sprites_group)
+        # for sprites_group in list_of_sprites_group:
+            # print(123, self.splash_group, sprites_group)
+            # print(self.splash_group)
+            # print(sprites_group)
+            # sprite.groupcollide(self.splash_group, sprites_group, False, False)
             # collide_list = sprite.groupcollide(self.splash_group, sprites_group, False, False)
             # for collision in collide_list:
                 # print(collision)
+        # raise SystemExit
 
 
 class Actor(sprite.Sprite):
     def __init__(self, x, y, sprites_tile=None):
+        super().__init__()
         self.xvel = self.yvel = 0
         self.anim_right = self.anim_left = self.anim_up = self.anim_down = self.anim_die = self.static_image = None
         self.image = pg.Surface((WIDTH, HEIGHT))
         self.image.fill(pg.Color(COLOR))
         self.rect = pg.Rect(x, y, WIDTH, HEIGHT)
         self.animation_timeout = 0
+        self.alive = True
+
+    def exploded(self):
+        self.alive = False
 
 
 class Player(Actor):
@@ -234,8 +290,9 @@ class Player(Actor):
             self.anim_down = cycle(sprites_tile[0][3:6])
             self.anim_die = cycle(sprites_tile[2][:7])
 
-    def update(self, horizontal, vertical, action, blocks, time):
+    def update(self, time, horizontal=0, vertical=0, action=False, blocks=[]):
 
+        # if self.alive:
         self.xvel = horizontal
         self.yvel = vertical
         self.animation_timeout += time
@@ -354,7 +411,7 @@ def main():
     pg.init()
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
-    pg.display.set_caption("Bomberman")
+    pg.display.set_caption("Demolition expert")
     bg = pg.Surface((WIN_WIDTH, WIN_HEIGHT))
 
     ss = SpriteSheet('./media/sprites_hq.png')
@@ -366,7 +423,7 @@ def main():
     bombs_group = sprite.Group()
     explosions_group = sprite.Group()
     actors_group = sprite.Group()
-    test_group = sprite.Group()
+    # test_group = sprite.Group()
     # blocks = []
     x = y = BLOCK_WIDTH
     for row in demo_field:
@@ -381,6 +438,8 @@ def main():
         y += BLOCK_HEIGHT
         x = BLOCK_WIDTH
     player = Player(BLOCK_WIDTH * 6, BLOCK_HEIGHT * 6.5, sprites_tile=sprites_tile)
+
+    actors_group.add(player)
 
     horizontal = vertical = 0
     action = False
@@ -412,11 +471,11 @@ def main():
                     vertical = 0
 
 
-        ret = player.update(horizontal, vertical, action, (blocks_group, bombs_group, actors_group), time=milliseconds)
+        ret = player.update(milliseconds, horizontal, vertical, action, (blocks_group, bombs_group, actors_group))
         blocks_group.update(milliseconds)
-        actors_group.update(milliseconds)
         bombs_group.update(milliseconds)
-        explosions_group.update(interact_with=(blocks_group, actors_group), time=milliseconds)
+        explosions_group.update(milliseconds, (blocks_group, actors_group))
+        # actors_group.update(milliseconds)
 
         screen.blit(bg, (0, 0))
 
@@ -446,15 +505,13 @@ def main():
         blocks_group.draw(screen)
         bombs_group.draw(screen)
         explosions_group.draw(screen)
-        test_group.draw(screen)
-        player.draw(screen)
+        actors_group.draw(screen)
+        # player.draw(screen)
 
 
         # for i, strip in enumerate(sprites_tile):
         #     for j, image in enumerate(strip):
         #         screen.blit(image, (j*BLOCK_WIDTH, i*BLOCK_HEIGHT))
-
-        screen.blit(sprites_tile[0][5], (0, 0))
 
         pg.display.update()
         
