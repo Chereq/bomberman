@@ -33,6 +33,7 @@ surface_f = pygame.Surface(pygame.display.list_modes()[0], pygame.SRCALPHA)
 surface_f.fill(background_color)
 
 fs, audio_data = wavfile.read('oscillofun.wav')
+# fs, audio_data = wavfile.read('The Alpha Molecule.wav')
 # fs, audio_data = wavfile.read('Oscilloscope Music Kickstarter (June 2015).wav')
 # fs, audio_data = wavfile.read('How To Draw Mushrooms On An Oscilloscope With Sound.wav')
 # fs, audio_data = wavfile.read('Jerobeam Fenderson - How To Draw Mushrooms On An Oscilloscope With Sound.wav')
@@ -121,8 +122,8 @@ while running:
         draw_data_slice[:,(0,1)] *= min_dim
         draw_data_slice[:,(0,1)] += [(pygame.display.Info().current_w - min_dim) // 2, (pygame.display.Info().current_h - min_dim) // 2]
 
-        if draw_data_slice[0][0] > 1000:
-            paused = True
+        # if draw_data_slice[0][0] > 1000:
+        #     paused = True
 
         if one_line:
             pygame.draw.aalines(surface, color, False, draw_data_slice[:,(0,1)])
