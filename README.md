@@ -1,5 +1,5 @@
 # bomberman
-Old-school arcade with PyGame
+Oldschool arcade parody with PyGame
 
 ## Usage
 
@@ -24,7 +24,8 @@ On Windows:
 | ------ | ----------- |
 | Arrows | Hero movement |
 | Space  | Place rapid unscheduled disassembly device |
-| Esc    | Exit |
+| F      | Fullscreen-mode |
+| Esc, Q | Exit |
 
 ### Goal
 The goal of game is simple. Just clean the field.

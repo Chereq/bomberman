@@ -6,15 +6,15 @@ from pygame import sprite
 from itertools import cycle
 from random import randint
 
-SPRITES_FILENAME = './media/sprites_hq_.png'
+SPRITES_FILENAME = './media/sprites_lq.png'
 
 # for field
-BLOCK_WIDTH = 64
-BLOCK_HEIGHT = 64
+BLOCK_WIDTH = 16
+BLOCK_HEIGHT = 16
 WIN_WIDTH = 800  # BLOCK_WIDTH * 8
 WIN_HEIGHT = 600  # BLOCK_HEIGHT * 8
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
-BACKGROUND_COLOR = "#101010"  # "#388700"
+BACKGROUND_COLOR = "#388700"
 BLOCK_COLOR = "#b0b0b0"
 
 # for player
@@ -36,7 +36,31 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                ###############"""
+                #######_#######
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #######_#######
+                #P____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #######_#######"""
 
 
 def get_closer_center(x, y):
@@ -370,8 +394,8 @@ class Player(Actor):
                         sprites_tile=self.sprites_tile,
                         timer=self.bomb_timer,
                         radius=self.bomb_radius)
-            self.bomb_timer -= 0.1
-            self.bomb_radius += 1
+            self.bomb_timer -= .05
+            self.bomb_radius += 10
             return bomb
 
     def collide(self, list_of_sprites_group):
