@@ -6,6 +6,8 @@ from pygame import sprite
 from itertools import cycle
 from random import randint
 
+SPRITES_FILENAME = './media/sprites_hq_.png'
+
 # for field
 BLOCK_WIDTH = 64
 BLOCK_HEIGHT = 64
@@ -92,7 +94,7 @@ class BrickBlock(Block):
 
 
 class Bomb(Block):
-    """bomb class for placing by "Player" class"""
+    """bomb class for placing by Player()"""
     def __init__(self, x, y, sprites_tile, timer=1, radius=1):
         super().__init__(x, y)
         self.sprites_tile = sprites_tile
@@ -154,7 +156,7 @@ class Explosion(Block):
         self.splash_group = ShiftableSpriteGroup()
 
     def get_rays_images(self, sprites_tile):
-        """make images lists for animations"""
+        """make images lists for animations of death-rays"""
         centers = (6, 2), (6, 7), (11, 2), (11, 7)
         images_inner = []
         images_otter = []
@@ -199,7 +201,9 @@ class Explosion(Block):
 
             self.splash_group.empty()
 
+            # making death-rays of a given length
             for distance in range(self.radius):
+                # rays bodies
                 sprite_left = sprite.Sprite()
                 sprite_left.image = images_inner[0]
                 sprite_left.rect = pg.Rect(
@@ -233,6 +237,7 @@ class Explosion(Block):
                                         BLOCK_HEIGHT)
                 self.splash_group.add(sprite_down)
 
+            # rays ends
             sprite_left = sprite.Sprite()
             sprite_left.image = images_otter[0]
             sprite_left.rect = pg.Rect(
@@ -267,12 +272,16 @@ class Explosion(Block):
             self.splash_group.add(sprite_down)
 
     def get_splash_group(self):
+        """returns ShiftableSpriteGroup() group of death-rays"""
         return self.splash_group
 
     def fired(self):
+        """is explosion ends?"""
         return not self.anim_center
 
     def collide(self, list_of_sprites_group):
+        """processing of death-rays touching
+        by sprites in collection of groups"""
         collisions = []
         for sprites_group in list_of_sprites_group:
             collisions += sprite.groupcollide(sprites_group,
@@ -302,14 +311,17 @@ class Actor(sprite.Sprite):
         self.alive = True
 
     def exploded(self):
+        """death-ray of Explosion() touched here"""
         self.alive = False
 
     def get_center_position(self):
+        """return self center point for camera movement"""
         return self.rect.x + self.rect.w // 2, \
-                self.rect.y + self.rect.h // 2
+            self.rect.y + self.rect.h // 2
 
 
 class Player(Actor):
+    """main character class"""
     def __init__(self, x, y, sprites_tile=None):
         super().__init__(x, y)
         self.sprites_tile = sprites_tile
@@ -320,6 +332,10 @@ class Player(Actor):
             self.anim_up = cycle(sprites_tile[1][3:6])
             self.anim_down = cycle(sprites_tile[0][3:6])
             self.anim_die = sprites_tile[2][6::-1]
+            self.anim_died = sprites_tile[20][:2] +\
+                sprites_tile[20][3:5] +\
+                sprites_tile[20][6:7]
+            self.anim_died = cycle(self.anim_died + self.anim_died[::-1])
         self.bomb_timer = 3
         self.bomb_radius = 1
 
@@ -358,7 +374,10 @@ class Player(Actor):
                 if self.anim_die:
                     self.image = self.anim_die.pop()
                 else:
-                    self.kill()
+                    self.image = next(self.anim_died)
+                    # self.kill()
+                    # self = Player(100, 100, sprites_tile=self.sprites_tile)
+                    # self = BrickBlock(100,100,sprites_tile=self.sprites_tile)
 
         self.rect.y += self.yvel * MOVE_SPEED
         self.rect.x += self.xvel * MOVE_SPEED
@@ -375,6 +394,8 @@ class Player(Actor):
             return bomb
 
     def collide(self, list_of_sprites_group):
+        """static objects collisions processing
+        moving through walls here"""
         move_h = move_v = 0
 
         for sprites_group in list_of_sprites_group:
@@ -402,10 +423,12 @@ class Player(Actor):
         elif move_v < 0:
             self.rect.y -= MOVE_SPEED
 
-    def draw(self, screen):
-        screen.blit(self.image, self.rect)
+    def draw(self, surface):
+        """draw himself onto the surface"""
+        surface.blit(self.image, self.rect)
 
     def is_alive(self):
+        """check sprite not collided with death-ray from Explosion()"""
         return self.alive
 
 
@@ -419,7 +442,7 @@ class SpriteSheet:
             raise SystemExit(message)
 
     def image_at(self, rectangle, colorkey=None):
-        "Loads image from x, y, x + offset, y + offset"
+        """loads image from x, y, x + offset, y + offset"""
         rect = pg.Rect(rectangle)
         image = pg.Surface(rect.size).convert()
         image.blit(self.sheet, (0, 0), rect)
@@ -431,17 +454,17 @@ class SpriteSheet:
         return image
 
     def images_at(self, rects, colorkey=None):
-        "Loads multiple images, supply a list of coordinates"
+        """loads multiple images, supply a list of coordinates"""
         return [self.image_at(rect, colorkey) for rect in rects]
 
     def load_strip(self, rect, image_count, colorkey=None):
-        "Loads a strip of images and returns them as a list"
+        """loads a strip of images and returns them as a list"""
         tups = [(rect[0] + rect[2] * x, rect[1], rect[2], rect[3])
                 for x in range(image_count)]
         return self.images_at(tups, colorkey)
 
     def load_table(self, rect, rows, cols, colorkey=None):
-        "Loads cols*rows of sprites"
+        """loads cols*rows of sprites"""
         ret = []
         for i in range(rows):
             tups = [(rect[0] + rect[2] * x,
@@ -460,9 +483,11 @@ class ShiftableSpriteGroup(sprite.Group):
         self.view_shift = 0, 0
 
     def set_view_shift(self, x, y):
+        """set shift of "camera" """
         self.view_shift = x, y
 
     def draw(self, surface):
+        """draw all sprites onto the surface"""
         # super().draw(surface)
         sprites = self.sprites()
         surface_blit = surface.blit
@@ -473,6 +498,13 @@ class ShiftableSpriteGroup(sprite.Group):
             self.spritedict[spr] = surface_blit(spr.image, rect)
         self.lostsprites = []
 
+    def contains_sprite_of_class(self, cls):
+        """check cls-type sprite in group"""
+        for sprite in self:
+            if isinstance(sprite, cls):
+                return True
+        return False
+
 
 def main():
     pg.init()
@@ -481,9 +513,15 @@ def main():
     bg = pg.Surface(pg.display.list_modes()[0])
     bg.fill(pg.Color(BACKGROUND_COLOR))
 
-    ss = SpriteSheet('./media/sprites_hq_.png')
+    font = pg.font.Font(None, 100)
+    win_screen = font.render(
+                        "WIN!", True, (50, 255, 50))
+    fail_screen = font.render(
+                        "YOU FAILED!", True, (255, 50, 50))
+
+    ss = SpriteSheet(SPRITES_FILENAME)
     sprites_tile = ss.load_table((0, 0, BLOCK_WIDTH, BLOCK_HEIGHT),
-                                 14, 12,
+                                 22, 14,
                                  colorkey=pg.Color("#388700"))
 
     pg.display.set_caption("Demolition expert")
@@ -543,13 +581,13 @@ def main():
                 if event.key == pg.K_q or event.key == pg.K_ESCAPE:
                     raise SystemExit
                 if event.key == pg.K_f:
-                    if pg.display.Info().current_w == 800 and \
-                       pg.display.Info().current_h == 600:
+                    if pg.display.Info().current_w == WIN_WIDTH and \
+                       pg.display.Info().current_h == WIN_HEIGHT:
                             pg.display.set_mode(pg.display.list_modes()[0])
                             pg.display.toggle_fullscreen()
                     else:
                         pg.display.toggle_fullscreen()
-                        pg.display.set_mode((800, 600))
+                        pg.display.set_mode(DISPLAY)
                 if event.key == pg.K_LEFT:
                     horizontal = -1
                 if event.key == pg.K_RIGHT:
@@ -565,9 +603,6 @@ def main():
                     horizontal = 0
                 if event.key == pg.K_UP or event.key == pg.K_DOWN:
                     vertical = 0
-
-        if not player.is_alive():
-            pg.display.set_icon(next(anim_icon))
 
         ret = player.update(milliseconds,
                             horizontal,
@@ -624,6 +659,16 @@ def main():
         bombs_group.draw(screen)
         explosions_group.draw(screen)
         actors_group.draw(screen)
+
+        if not player.is_alive():
+            screen.blit(fail_screen,
+                        (display_w // 2 - fail_screen.get_width() // 2,
+                         display_h // 2 - fail_screen.get_height() // 2))
+
+        elif not blocks_group.contains_sprite_of_class(BrickBlock):
+            screen.blit(win_screen,
+                        (display_w // 2 - win_screen.get_width() // 2,
+                         display_h // 2 - win_screen.get_height() // 2))
 
         pg.display.update()
 
