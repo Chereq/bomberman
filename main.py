@@ -30,9 +30,9 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
+                #_#_#_++++#_#_#_#_#
+                #_____++++________#
+                #_#_#_++++#_#_#_#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
@@ -101,7 +101,7 @@ class Bomb(Block):
         self.image = sprites_tile[3][0]
         self.countdown = timer
         self.radius = radius
-        self.animation_rate = ANIMATION_RATE / (self.countdown + .5)
+        self.animation_rate = ANIMATION_RATE / (self.countdown + .55)
         self.animation_timeout = 0
         self.anim_static = cycle(sprites_tile[3][0:3] +
                                  sprites_tile[3][2:-1:-1])
@@ -279,6 +279,35 @@ class Explosion(Block):
         """is explosion ends?"""
         return not self.anim_center
 
+    def get_direction_and_distance(self, sprite):
+        """calculate distance and direction of collision"""
+        delta_x = self.rect.x - sprite.rect.x
+        delta_y = self.rect.y - sprite.rect.y
+
+        direction = -1
+        if delta_x > 0:
+            direction = 0
+        elif delta_x < 0:
+            direction = 1
+        elif delta_y > 0:
+            direction = 2
+        elif delta_y < 0:
+            direction = 3
+
+        distance = max(abs(delta_x), abs(delta_y)) // BLOCK_WIDTH
+        
+        return direction, distance
+
+    def get_rays_lengths(self, groups, maxlen=0):
+        """calculate maximum rays lengths to sprites from collection of groups
+        returns tuple of distances (left, right, up, down)
+        directions:
+        0 - left
+        1 - right
+        2 - up
+        3 - down"""
+
+
     def collide(self, list_of_sprites_group):
         """processing of death-rays touching
         by sprites in collection of groups"""
@@ -291,6 +320,9 @@ class Explosion(Block):
         for collision in collisions:
             # trying to destroy collided sprites
             collision.exploded()
+            if isinstance(collision, WallBlock) or isinstance(collision, BrickBlock):
+                direction, distance = self.get_direction_and_distance(collision)
+                print(direction, distance)
 
 
 class Actor(sprite.Sprite):
@@ -312,7 +344,7 @@ class Actor(sprite.Sprite):
 
     def exploded(self):
         """death-ray of Explosion() touched here"""
-        self.alive = False
+        # self.alive = False
 
     def get_center_position(self):
         """return self center point for camera movement"""
@@ -336,7 +368,7 @@ class Player(Actor):
                 sprites_tile[20][3:5] +\
                 sprites_tile[20][6:7]
             self.anim_died = cycle(self.anim_died + self.anim_died[::-1])
-        self.bomb_timer = 3
+        self.bomb_timer = 0
         self.bomb_radius = 1
 
     def update(self,
@@ -510,8 +542,9 @@ def main():
     pg.init()
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
-    bg = pg.Surface(pg.display.list_modes()[0])
-    bg.fill(pg.Color(BACKGROUND_COLOR))
+
+    backgroud_surface = pg.Surface(pg.display.list_modes()[0])
+    backgroud_surface.fill(pg.Color(BACKGROUND_COLOR))
 
     font = pg.font.Font(None, 100)
     win_screen = font.render(
@@ -634,7 +667,7 @@ def main():
         else:
             cam_shift[1] = display_h // 2 - field_height // 2
 
-        screen.blit(bg, cam_shift)
+        screen.blit(backgroud_surface, cam_shift)
 
         for bomb in bombs_group:
             if bomb.is_exploded():
