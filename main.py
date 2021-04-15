@@ -3,7 +3,6 @@
 
 import pygame as pg
 from pygame import sprite
-from pprint import pprint
 from itertools import cycle
 from random import randint
 
@@ -22,6 +21,20 @@ WIDTH = BLOCK_WIDTH
 HEIGHT = BLOCK_HEIGHT
 COLOR = "#888888"
 ANIMATION_RATE = 10
+
+DEMO_FIELD = """###############
+                #P+___________#
+                #+#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                ###############"""
 
 
 def get_closer_center(x, y):
@@ -482,23 +495,9 @@ def main():
     explosions_group = ShiftableSpriteGroup()
     actors_group = ShiftableSpriteGroup()
 
-    demo_field = """###############
-                    #P+___________#
-                    #+#_#_#_#_#_#_#
-                    #_____________#
-                    #_#_#_#_#_#_#_#
-                    #_____________#
-                    #_#_#_#_#_#_#_#
-                    #_____________#
-                    #_#_#_#_#_#_#_#
-                    #_____________#
-                    #_#_#_#_#_#_#_#
-                    #_____________#
-                    ###############"""
-
     player = None
     field_width = field_height = 0
-    for row in demo_field.replace('\r', '').split('\n'):
+    for row in DEMO_FIELD.replace('\r', '').split('\n'):
         field_width = 0
         for cell in row.strip():
             block = None
