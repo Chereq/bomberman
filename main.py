@@ -24,41 +24,14 @@ COLOR = "#888888"
 ANIMATION_RATE = 10
 
 
-class Camera(object):
-
-    def __init__(self, camera_func, width, height):
-        self.camera_func = camera_func
-        self.state = Rect(0, 0, width, height)
-
-    def apply(self, target):
-        return target.rect.move(self.state.topleft)
-
-    def update(self, target):
-        self.state = self.camera_func(self.state, target.rect)
-
-    def reverse(self, pos):
-        return pos[0] - self.state.left, pos[1] - self.state.top
-
-    @classmethod
-    def camera_configure(camera, target_rect):
-        l, t, _, _ = target_rect
-        _, _, w, h = camera
-        l, t = -l + WIN_WIDTH / 2, -t + WIN_HEIGHT / 2
-
-        l = min(0, l)
-        l = max(-(camera.width - WIN_WIDTH), l)
-        t = max(-(camera.height - WIN_HEIGHT), t)
-        t = min(0, t)
-
-        return pg.Rect(l, t, w, h)
-
-
 def get_closer_center(x, y):
+    """returns closer block coordinates for place objects"""
     return round(x / BLOCK_WIDTH) * BLOCK_WIDTH, \
-            round(y / BLOCK_HEIGHT) * BLOCK_HEIGHT
+        round(y / BLOCK_HEIGHT) * BLOCK_HEIGHT
 
 
 class Block(sprite.Sprite):
+    """abstract class for static objects"""
     def __init__(self, x, y, sprites_tile=None):
         super().__init__()
         self.image = pg.Surface((BLOCK_WIDTH, BLOCK_HEIGHT))
@@ -77,6 +50,7 @@ class Block(sprite.Sprite):
 
 
 class WallBlock(Block):
+    """indestructible block"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.image = kwargs["sprites_tile"][3][3]
@@ -86,6 +60,7 @@ class WallBlock(Block):
 
 
 class BrickBlock(Block):
+    """destructible block"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.image = kwargs["sprites_tile"][3][4]
@@ -104,6 +79,7 @@ class BrickBlock(Block):
 
 
 class Bomb(Block):
+    """bomb class for placing by "Player" class"""
     def __init__(self, x, y, sprites_tile, timer=1, radius=1):
         super().__init__(x, y)
         self.sprites_tile = sprites_tile
@@ -138,6 +114,9 @@ class Bomb(Block):
 
 
 class Explosion(Block):
+    """Explosion class.
+    Objects placed by Bomb class after timeout.
+    Destroy objects by .exploded() method"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
 
@@ -162,6 +141,7 @@ class Explosion(Block):
         self.splash_group = ShiftableSpriteGroup()
 
     def get_rays_images(self, sprites_tile):
+        """make images lists for animations"""
         centers = (6, 2), (6, 7), (11, 2), (11, 7)
         images_inner = []
         images_otter = []
@@ -280,7 +260,6 @@ class Explosion(Block):
         return not self.anim_center
 
     def collide(self, list_of_sprites_group):
-
         collisions = []
         for sprites_group in list_of_sprites_group:
             collisions += sprite.groupcollide(sprites_group,
@@ -288,10 +267,12 @@ class Explosion(Block):
                                               False,
                                               False)
         for collision in collisions:
+            # trying to destroy collided sprites
             collision.exploded()
 
 
 class Actor(sprite.Sprite):
+    """abstract class for moving objects"""
     def __init__(self, x, y, sprites_tile=None):
         super().__init__()
         self.xvel = self.yvel = 0
@@ -345,6 +326,7 @@ class Player(Actor):
             self.yvel = vertical
         else:
             self.xvel = self.yvel = 0
+
         self.animation_timeout += time
 
         if self.animation_timeout / 1000 >= 1 / ANIMATION_RATE:
@@ -380,7 +362,6 @@ class Player(Actor):
             return bomb
 
     def collide(self, list_of_sprites_group):
-
         move_h = move_v = 0
 
         for sprites_group in list_of_sprites_group:
@@ -416,6 +397,7 @@ class Player(Actor):
 
 
 class SpriteSheet:
+    """single-file sprites loader class"""
     def __init__(self, filename):
         try:
             self.sheet = pg.image.load(filename).convert()
@@ -430,6 +412,7 @@ class SpriteSheet:
         image.blit(self.sheet, (0, 0), rect)
         if colorkey is None:
             colorkey = image.get_at((0, 0))
+            image.set_colorkey(colorkey, pg.RLEACCEL)
         elif isinstance(colorkey, pg.Color):
             image.set_colorkey(colorkey, pg.RLEACCEL)
         return image
@@ -457,6 +440,8 @@ class SpriteSheet:
 
 
 class ShiftableSpriteGroup(sprite.Group):
+    """modified sprite.Group with screen shift option
+    for camera movement imitation"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.view_shift = 0, 0
@@ -481,15 +466,16 @@ def main():
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
     bg = pg.Surface(pg.display.list_modes()[0])
+    bg.fill(pg.Color(BACKGROUND_COLOR))
 
-    ss = SpriteSheet('./media/sprites_hq.png')
-    sprites_tile = ss.load_table((0, 0, BLOCK_WIDTH, BLOCK_HEIGHT), 14, 12, 1)
+    ss = SpriteSheet('./media/sprites_hq_.png')
+    sprites_tile = ss.load_table((0, 0, BLOCK_WIDTH, BLOCK_HEIGHT),
+                                 14, 12,
+                                 colorkey=pg.Color("#388700"))
 
     pg.display.set_caption("Demolition expert")
     pg.display.set_icon(sprites_tile[0][5])
     anim_icon = cycle(sprites_tile[2][:7])
-
-    bg.fill(pg.Color(BACKGROUND_COLOR))
 
     blocks_group = ShiftableSpriteGroup()
     bombs_group = ShiftableSpriteGroup()
@@ -497,8 +483,8 @@ def main():
     actors_group = ShiftableSpriteGroup()
 
     demo_field = """###############
-                    #_____________#
-                    #_#_#_#_#_#_#_#
+                    #P+___________#
+                    #+#_#_#_#_#_#_#
                     #_____________#
                     #_#_#_#_#_#_#_#
                     #_____________#
@@ -510,26 +496,38 @@ def main():
                     #_____________#
                     ###############"""
 
-    x = y = 0
+    player = None
+    field_width = field_height = 0
     for row in demo_field.replace('\r', '').split('\n'):
-        x = 0
+        field_width = 0
         for cell in row.strip():
             block = None
             if cell == '#':
-                block = WallBlock(x, y, sprites_tile=sprites_tile)
+                block = WallBlock(field_width,
+                                  field_height,
+                                  sprites_tile=sprites_tile)
             elif cell == 'B':
-                block = BrickBlock(x, y, sprites_tile=sprites_tile)
+                block = BrickBlock(field_width,
+                                   field_height,
+                                   sprites_tile=sprites_tile)
             elif cell == '_' and not randint(0, 2):
-                block = BrickBlock(x, y, sprites_tile=sprites_tile)
+                block = BrickBlock(field_width,
+                                   field_height,
+                                   sprites_tile=sprites_tile)
+            elif cell == 'P' and not player:
+                player = Player(field_width,
+                                field_height,
+                                sprites_tile=sprites_tile)
             if block:
                 blocks_group.add(block)
-            x += BLOCK_WIDTH
-        y += BLOCK_HEIGHT
-    field_width, field_height = x, y
-    player = Player(BLOCK_WIDTH * 5,
-                    BLOCK_HEIGHT * 5,
-                    sprites_tile=sprites_tile)
+            field_width += BLOCK_WIDTH
+        field_height += BLOCK_HEIGHT
 
+    field_center = (field_width // 2 - BLOCK_WIDTH // 2,
+                    field_height // 2 - BLOCK_HEIGHT // 2)
+
+    if player is None:
+        player = Player(*field_center, sprites_tile=sprites_tile)
     actors_group.add(player)
 
     horizontal = vertical = 0
@@ -583,8 +581,6 @@ def main():
         explosions_group.update(milliseconds, (blocks_group, actors_group))
         actors_group.update(milliseconds)
 
-        screen.blit(bg, (0, 0))
-
         if ret:
             if isinstance(ret, Bomb):
                 bombs_group.add(ret)
@@ -603,6 +599,8 @@ def main():
                                -field_height + display_h)
         else:
             cam_shift[1] = display_h // 2 - field_height // 2
+
+        screen.blit(bg, cam_shift)
 
         for bomb in bombs_group:
             if bomb.is_exploded():
@@ -627,7 +625,6 @@ def main():
         bombs_group.draw(screen)
         explosions_group.draw(screen)
         actors_group.draw(screen)
-        # player.draw(screen)
 
         pg.display.update()
 
