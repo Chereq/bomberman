@@ -14,7 +14,7 @@ BLOCK_HEIGHT = 64
 WIN_WIDTH = 800  # BLOCK_WIDTH * 8
 WIN_HEIGHT = 600  # BLOCK_HEIGHT * 8
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
-BACKGROUND_COLOR = "#388700"
+BACKGROUND_COLOR = "#101010"  # "#388700"
 BLOCK_COLOR = "#b0b0b0"
 
 # for player
@@ -30,9 +30,9 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #_#_#_++++#_#_#_#_#
-                #_____++++________#
-                #_#_#_++++#_#_#_#_#
+                #_#_#_#_#_#_#_#
+                #_____________#
+                #_#_#_#_#_#_#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
@@ -138,9 +138,19 @@ class Explosion(Block):
         self.radius = 1
         if "radius" in kwargs:
             self.radius = kwargs["radius"]
+        self.rays_lengths = [self.radius] * 4
+
         self.blast_speed = 10
-        self.ray_power = 1
         self.time = 0
+
+        # directions of rays:
+        # 0 - left
+        # 1 - right
+        # 2 - up
+        # 3 - down
+        self.rays_directions = ((-1, 0), (+1, 0), (0, -1), (0, +1))
+
+        self.blocking_groups = set()
 
         self.anim_center = [kwargs["sprites_tile"][6][2],
                             kwargs["sprites_tile"][6][7],
@@ -154,6 +164,10 @@ class Explosion(Block):
             self.get_rays_images(kwargs["sprites_tile"])
 
         self.splash_group = ShiftableSpriteGroup()
+
+    def set_blocking_groups(self, groups):
+        self.blocking_groups = groups
+        self.clip_rays_lengths()
 
     def get_rays_images(self, sprites_tile):
         """make images lists for animations of death-rays"""
@@ -201,75 +215,31 @@ class Explosion(Block):
 
             self.splash_group.empty()
 
-            # making death-rays of a given length
-            for distance in range(self.radius):
-                # rays bodies
-                sprite_left = sprite.Sprite()
-                sprite_left.image = images_inner[0]
-                sprite_left.rect = pg.Rect(
-                                    self.rect.x - BLOCK_WIDTH * distance,
-                                    self.rect.y,
-                                    BLOCK_WIDTH,
-                                    BLOCK_HEIGHT)
-                self.splash_group.add(sprite_left)
-                sprite_right = sprite.Sprite()
-                sprite_right.image = images_inner[1]
-                sprite_right.rect = pg.Rect(
-                                        self.rect.x + BLOCK_WIDTH * distance,
-                                        self.rect.y,
-                                        BLOCK_WIDTH,
-                                        BLOCK_HEIGHT)
-                self.splash_group.add(sprite_right)
-                sprite_up = sprite.Sprite()
-                sprite_up.image = images_inner[2]
-                sprite_up.rect = pg.Rect(
-                                    self.rect.x,
-                                    self.rect.y - BLOCK_HEIGHT * distance,
-                                    BLOCK_WIDTH,
-                                    BLOCK_HEIGHT)
-                self.splash_group.add(sprite_up)
-                sprite_down = sprite.Sprite()
-                sprite_down.image = images_inner[3]
-                sprite_down.rect = pg.Rect(
-                                        self.rect.x,
-                                        self.rect.y + BLOCK_HEIGHT * distance,
-                                        BLOCK_WIDTH,
-                                        BLOCK_HEIGHT)
-                self.splash_group.add(sprite_down)
+            # making death-rays of a predicted length
+            for i, (x, y) in enumerate(self.rays_directions):
+                for l in range(self.rays_lengths[i]):
+                    ray_sprite = sprite.Sprite()
+                    ray_sprite.image = images_inner[i]
+                    # ray_sprite.mask = pg.mask.from_surface(ray_sprite.image)
 
-            # rays ends
-            sprite_left = sprite.Sprite()
-            sprite_left.image = images_otter[0]
-            sprite_left.rect = pg.Rect(
-                                    self.rect.x - BLOCK_WIDTH * self.radius,
-                                    self.rect.y,
+                    ray_sprite.rect = pg.Rect(
+                                        self.rect.x + x * l * BLOCK_WIDTH,
+                                        self.rect.y + y * l * BLOCK_HEIGHT,
+                                        BLOCK_WIDTH,
+                                        BLOCK_HEIGHT)
+                    self.splash_group.add(ray_sprite)
+
+                ray_end_sprite = sprite.Sprite()
+                ray_end_sprite.image = images_otter[i]
+                # ray_end_sprite.mask = pg.mask.from_surface(
+                #                                    ray_end_sprite.image)
+
+                ray_end_sprite.rect = pg.Rect(
+                                    self.rect.x + x * (l + 1) * BLOCK_WIDTH,
+                                    self.rect.y + y * (l + 1) * BLOCK_HEIGHT,
                                     BLOCK_WIDTH,
                                     BLOCK_HEIGHT)
-            self.splash_group.add(sprite_left)
-            sprite_right = sprite.Sprite()
-            sprite_right.image = images_otter[1]
-            sprite_right.rect = pg.Rect(
-                                    self.rect.x + BLOCK_WIDTH * self.radius,
-                                    self.rect.y,
-                                    BLOCK_WIDTH,
-                                    BLOCK_HEIGHT)
-            self.splash_group.add(sprite_right)
-            sprite_up = sprite.Sprite()
-            sprite_up.image = images_otter[2]
-            sprite_up.rect = pg.Rect(
-                                self.rect.x,
-                                self.rect.y - BLOCK_HEIGHT * self.radius,
-                                BLOCK_WIDTH,
-                                BLOCK_HEIGHT)
-            self.splash_group.add(sprite_up)
-            sprite_down = sprite.Sprite()
-            sprite_down.image = images_otter[3]
-            sprite_down.rect = pg.Rect(
-                                self.rect.x,
-                                self.rect.y + BLOCK_HEIGHT * self.radius,
-                                BLOCK_WIDTH,
-                                BLOCK_HEIGHT)
-            self.splash_group.add(sprite_down)
+                self.splash_group.add(ray_end_sprite)
 
     def get_splash_group(self):
         """returns ShiftableSpriteGroup() group of death-rays"""
@@ -279,34 +249,16 @@ class Explosion(Block):
         """is explosion ends?"""
         return not self.anim_center
 
-    def get_direction_and_distance(self, sprite):
-        """calculate distance and direction of collision"""
-        delta_x = self.rect.x - sprite.rect.x
-        delta_y = self.rect.y - sprite.rect.y
-
-        direction = -1
-        if delta_x > 0:
-            direction = 0
-        elif delta_x < 0:
-            direction = 1
-        elif delta_y > 0:
-            direction = 2
-        elif delta_y < 0:
-            direction = 3
-
-        distance = max(abs(delta_x), abs(delta_y)) // BLOCK_WIDTH
-        
-        return direction, distance
-
-    def get_rays_lengths(self, groups, maxlen=0):
+    def clip_rays_lengths(self):
         """calculate maximum rays lengths to sprites from collection of groups
-        returns tuple of distances (left, right, up, down)
-        directions:
-        0 - left
-        1 - right
-        2 - up
-        3 - down"""
-
+        returns tuple of distances (left, right, up, down)"""
+        for i in range(self.radius, 0, -1):
+            for group in self.blocking_groups:
+                for j, (x, y) in enumerate(self.rays_directions):
+                    if group.get_sprite_in_pos(
+                                self.rect.x + i * x * BLOCK_WIDTH,
+                                self.rect.y + i * y * BLOCK_HEIGHT):
+                        self.rays_lengths[j] = i
 
     def collide(self, list_of_sprites_group):
         """processing of death-rays touching
@@ -320,9 +272,6 @@ class Explosion(Block):
         for collision in collisions:
             # trying to destroy collided sprites
             collision.exploded()
-            if isinstance(collision, WallBlock) or isinstance(collision, BrickBlock):
-                direction, distance = self.get_direction_and_distance(collision)
-                print(direction, distance)
 
 
 class Actor(sprite.Sprite):
@@ -344,7 +293,7 @@ class Actor(sprite.Sprite):
 
     def exploded(self):
         """death-ray of Explosion() touched here"""
-        # self.alive = False
+        self.alive = False
 
     def get_center_position(self):
         """return self center point for camera movement"""
@@ -368,7 +317,7 @@ class Player(Actor):
                 sprites_tile[20][3:5] +\
                 sprites_tile[20][6:7]
             self.anim_died = cycle(self.anim_died + self.anim_died[::-1])
-        self.bomb_timer = 0
+        self.bomb_timer = 3
         self.bomb_radius = 1
 
     def update(self,
@@ -537,6 +486,12 @@ class ShiftableSpriteGroup(sprite.Group):
                 return True
         return False
 
+    def get_sprite_in_pos(self, x, y):
+        """returns sprite in position x*y"""
+        for sprite in self:
+            if sprite.rect.x == x and sprite.rect.y == y:
+                return sprite
+
 
 def main():
     pg.init()
@@ -548,7 +503,7 @@ def main():
 
     font = pg.font.Font(None, 100)
     win_screen = font.render(
-                        "WIN!", True, (50, 255, 50))
+                        "YOU WIN!", True, (50, 255, 50))
     fail_screen = font.render(
                         "YOU FAILED!", True, (255, 50, 50))
 
@@ -667,11 +622,12 @@ def main():
         else:
             cam_shift[1] = display_h // 2 - field_height // 2
 
-        screen.blit(backgroud_surface, cam_shift)
+        screen.blit(backgroud_surface, (0, 0))
 
         for bomb in bombs_group:
             if bomb.is_exploded():
                 explosion = bomb.get_explosion()
+                explosion.set_blocking_groups((blocks_group, bombs_group))
                 explosions_group.add(explosion)
 
         for explosion in explosions_group:
