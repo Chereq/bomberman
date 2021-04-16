@@ -6,11 +6,9 @@ from pygame import sprite
 from itertools import cycle
 from random import randint
 
-SPRITES_FILENAME = './media/sprites_lq.png'
-
 # for field
-BLOCK_WIDTH = 16
-BLOCK_HEIGHT = 16
+BLOCK_WIDTH = 32
+BLOCK_HEIGHT = 32
 WIN_WIDTH = 800  # BLOCK_WIDTH * 8
 WIN_HEIGHT = 600  # BLOCK_HEIGHT * 8
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
@@ -36,7 +34,7 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #######_#######
+                ###############"""
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
@@ -49,8 +47,6 @@ DEMO_FIELD = """###############
                 #_#_#_#_#_#_#_#
                 #_____________#
                 #######_#######
-                #P____________#
-                #_#_#_#_#_#_#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
@@ -60,8 +56,18 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #######_#######"""
+                #_#_#_#_#_#_#_#
+                #_____________#
+                ###############"""
 
+SPRITES_FILENAME = './media/sprites_mq.png'
+
+SOUND_THEME = "./media/sfx_1.wav"
+SOUND_WIN = "./media/sfx_6.wav"
+SOUND_FAIL = "./media/sfx_2.wav"
+SOUND_STEP = "./media/sfx_5.wav"
+SOUND_PLANT = "./media/sfx_3.wav"
+SOUND_BLAST = "./media/sfx_4.wav"
 
 def get_closer_center(x, y):
     """returns closer block coordinates for place objects"""
@@ -130,6 +136,8 @@ class Bomb(Block):
         self.anim_static = cycle(sprites_tile[3][0:3] +
                                  sprites_tile[3][2:-1:-1])
         self.anim_die = sprites_tile[3][5:11]
+        self.sfx_plant = pg.mixer.Sound(SOUND_PLANT)
+        self.sfx_plant.play()
 
     def update(self, time):
         self.animation_timeout += time
@@ -146,6 +154,7 @@ class Bomb(Block):
         return self.rect.x, self.rect.y
 
     def get_explosion(self):
+        self.sfx_plant.fadeout(25)
         self.kill()
         return Explosion(*self.get_epicenter(),
                          sprites_tile=self.sprites_tile,
@@ -189,6 +198,9 @@ class Explosion(Block):
 
         self.splash_group = ShiftableSpriteGroup()
 
+        self.sfx_blast = pg.mixer.Sound(SOUND_BLAST)
+        self.sfx_blast.play()
+
     def set_blocking_groups(self, groups):
         self.blocking_groups = groups
         self.clip_rays_lengths()
@@ -227,6 +239,7 @@ class Explosion(Block):
         if not self.anim_center:
             self.image = self.static_image
             self.splash_group.empty()
+            self.sfx_blast.fadeout(25)
             self.kill()
             return
 
@@ -343,6 +356,9 @@ class Player(Actor):
             self.anim_died = cycle(self.anim_died + self.anim_died[::-1])
         self.bomb_timer = 3
         self.bomb_radius = 1
+        self.sfx_step = pg.mixer.Sound(SOUND_STEP)
+        self.sfx_step.set_volume(.50)
+        self.steps_count = 0
 
     def update(self,
                time,
@@ -380,9 +396,12 @@ class Player(Actor):
                     self.image = self.anim_die.pop()
                 else:
                     self.image = next(self.anim_died)
-                    # self.kill()
-                    # self = Player(100, 100, sprites_tile=self.sprites_tile)
-                    # self = BrickBlock(100,100,sprites_tile=self.sprites_tile)
+
+            if (self.xvel or self.yvel) and self.steps_count >= 2:
+                self.sfx_step.fadeout(50)
+                self.sfx_step.play()
+                self.steps_count = 0
+            self.steps_count += 1
 
         self.rect.y += self.yvel * MOVE_SPEED
         self.rect.x += self.xvel * MOVE_SPEED
@@ -394,8 +413,8 @@ class Player(Actor):
                         sprites_tile=self.sprites_tile,
                         timer=self.bomb_timer,
                         radius=self.bomb_radius)
-            self.bomb_timer -= .05
-            self.bomb_radius += 10
+            self.bomb_timer -= .025
+            self.bomb_radius += 1
             return bomb
 
     def collide(self, list_of_sprites_group):
@@ -519,8 +538,15 @@ class ShiftableSpriteGroup(sprite.Group):
 
 def main():
     pg.init()
+    pg.mixer.init(44100, 16, 2)
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
+
+    sfx_back = pg.mixer.Sound(SOUND_THEME)
+    sfx_win = pg.mixer.Sound(SOUND_WIN)
+    sfx_fail = pg.mixer.Sound(SOUND_FAIL)
+    sfx_back.play(loops=-1)
+    sfx_back_playing = True
 
     backgroud_surface = pg.Surface(pg.display.list_modes()[0])
     backgroud_surface.fill(pg.Color(BACKGROUND_COLOR))
@@ -674,11 +700,20 @@ def main():
         actors_group.draw(screen)
 
         if not player.is_alive():
+            if sfx_back_playing:
+                sfx_back_playing = False
+                sfx_back.fadeout(25)
+                sfx_win.fadeout(25)
+                sfx_fail.play()
             screen.blit(fail_screen,
                         (display_w // 2 - fail_screen.get_width() // 2,
                          display_h // 2 - fail_screen.get_height() // 2))
 
         elif not blocks_group.contains_sprite_of_class(BrickBlock):
+            if sfx_back_playing:
+                sfx_back_playing = False
+                sfx_back.fadeout(25)
+                sfx_win.play()
             screen.blit(win_screen,
                         (display_w // 2 - win_screen.get_width() // 2,
                          display_h // 2 - win_screen.get_height() // 2))
