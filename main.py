@@ -64,7 +64,7 @@ SPRITES_FILENAME = './media/sprites_mq.png'
 
 SOUND_THEME = "./media/sfx_1.wav"
 SOUND_WIN = "./media/sfx_6.wav"
-SOUND_FAIL = "./media/sfx_2.wav"
+SOUND_FAIL = "./media/sfx_7.wav"
 SOUND_STEP = "./media/sfx_5.wav"
 SOUND_PLANT = "./media/sfx_3.wav"
 SOUND_BLAST = "./media/sfx_4.wav"
