@@ -34,7 +34,7 @@ DEMO_FIELD = """###############
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                ###############"""
+                #######_#######
                 #_____________#
                 #_#_#_#_#_#_#_#
                 #_____________#
@@ -68,6 +68,7 @@ SOUND_FAIL = "./media/sfx_7.wav"
 SOUND_STEP = "./media/sfx_5.wav"
 SOUND_PLANT = "./media/sfx_3.wav"
 SOUND_BLAST = "./media/sfx_4.wav"
+
 
 def get_closer_center(x, y):
     """returns closer block coordinates for place objects"""
@@ -538,10 +539,11 @@ class ShiftableSpriteGroup(sprite.Group):
 
 def main():
     pg.init()
-    pg.mixer.init(44100, 16, 2)
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
 
+    # init sound subsystem and prepare some sounds
+    pg.mixer.init(44100, 16, 2)
     sfx_back = pg.mixer.Sound(SOUND_THEME)
     sfx_win = pg.mixer.Sound(SOUND_WIN)
     sfx_fail = pg.mixer.Sound(SOUND_FAIL)
