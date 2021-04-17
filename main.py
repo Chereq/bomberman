@@ -22,6 +22,15 @@ HEIGHT = BLOCK_HEIGHT
 COLOR = "#888888"
 ANIMATION_RATE = 10
 
+SPRITES_FILENAME = './media/sprites_mq.png'
+
+SOUND_THEME = "./media/sfx_1.wav"
+SOUND_WIN = "./media/sfx_6.wav"
+SOUND_FAIL = "./media/sfx_7.wav"
+SOUND_STEP = "./media/sfx_5.wav"
+SOUND_PLANT = "./media/sfx_3.wav"
+SOUND_BLAST = "./media/sfx_4.wav"
+
 DEMO_FIELD = """###############
                 #P+___________#
                 #+#_#_#_#_#_#_#
@@ -60,14 +69,20 @@ DEMO_FIELD = """###############
                 #_____________#
                 ###############"""
 
-SPRITES_FILENAME = './media/sprites_mq.png'
 
-SOUND_THEME = "./media/sfx_1.wav"
-SOUND_WIN = "./media/sfx_6.wav"
-SOUND_FAIL = "./media/sfx_7.wav"
-SOUND_STEP = "./media/sfx_5.wav"
-SOUND_PLANT = "./media/sfx_3.wav"
-SOUND_BLAST = "./media/sfx_4.wav"
+def make_level(width, height):
+    level_base = "#" * width + "\n" + \
+        ("#" + "_" * (width - 2) + "#\n" +
+         "#_" * ((width - 2) // 2 + 1) + "#\n") * \
+        ((height - 2) // 2 + 1) + "#" * width
+    level_base = level_base.split('\n')
+    r1 = list(level_base[1])
+    r2 = list(level_base[2])
+    r1[:3] = '#', 'P', '+'
+    r2[:2] = '#', '+'
+    level_base[1] = ''.join(r1)
+    level_base[2] = ''.join(r2)
+    return '\n'.join(level_base)
 
 
 def get_closer_center(x, y):
@@ -149,7 +164,7 @@ class Bomb(Block):
             self.image = next(self.anim_static)
 
     def is_exploded(self):
-        return self.countdown <= 0
+        return self.countdown <= 0 or not self.alive
 
     def get_epicenter(self):
         return self.rect.x, self.rect.y
@@ -595,6 +610,18 @@ def main():
                 player = Player(field_width,
                                 field_height,
                                 sprites_tile=sprites_tile)
+            elif cell == 'q':
+                bombs_group.add(Bomb(field_width,
+                                     field_height,
+                                     sprites_tile=sprites_tile,
+                                     timer=randint(5, 60),
+                                     radius=randint(1, 3)))
+            elif cell == 'Q':
+                bombs_group.add(Bomb(field_width,
+                                     field_height,
+                                     sprites_tile=sprites_tile,
+                                     timer=randint(30, 120),
+                                     radius=randint(5, 10)))
             if block:
                 blocks_group.add(block)
             field_width += BLOCK_WIDTH
@@ -652,7 +679,9 @@ def main():
                             directcall=True)
         blocks_group.update(milliseconds)
         bombs_group.update(milliseconds)
-        explosions_group.update(milliseconds, (blocks_group, actors_group))
+        explosions_group.update(milliseconds, (blocks_group,
+                                               actors_group,
+                                               bombs_group))
         actors_group.update(milliseconds)
 
         if ret:
