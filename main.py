@@ -33,39 +33,39 @@ SOUND_BLAST = "./media/sfx_4.wav"
 
 DEMO_FIELD = """###############
                 #P+___________#
-                #+#_#_#_#_#_#_#
+                #+#_#_#_#_#b#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
+                #_____oo______#
+                #_#_#_#_#_#_#_#
+                #__b______b___#
+                #_#_#_#_#_#_#_#
+                #__o______b___#
+                #_#_#_#_#_#_#_#
+                #__o_______b__#
+                #######B#######
                 #_____________#
+                #_#r#_#_#_#_#_#
+                #_____r_______#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #_#_#_#_#_#_#_#
+                #_#_#_#_#r#r#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
-                #_____________#
-                #######_#######
-                #_____________#
+                #___d_________#
+                #_#_#_#_#_#_#_#
+                #_________r___#
+                #######B#######
+                #__r______d___#
                 #_#_#_#_#_#_#_#
                 #_____________#
-                #_#_#_#_#_#_#_#
+                #_#_#_#_#b#_#_#
                 #_____________#
                 #_#_#_#_#_#_#_#
-                #_____________#
+                #__o____b_____#
                 #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #######_#######
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
+                #________r____#
+                #_#r#_#_#_#_#_#
                 #_____________#
                 ###############"""
 
@@ -353,6 +353,41 @@ class Actor(sprite.Sprite):
         return self.rect.x + self.rect.w // 2, \
             self.rect.y + self.rect.h // 2
 
+    def collide(self, list_of_sprites_group):
+        """static objects collisions processing
+        moving through walls here"""
+        move_h = move_v = 0
+
+        collisions = set()
+
+        for sprites_group in list_of_sprites_group:
+
+            collisions.update(sprite.spritecollide(self, sprites_group, False))
+            collisions.discard(self)
+            for collision in collisions:
+                if collision.rect.x < self.rect.x:
+                    move_h += 1
+
+                if collision.rect.x > self.rect.x:
+                    move_h -= 1
+
+                if collision.rect.y < self.rect.y:
+                    move_v += 1
+
+                if collision.rect.y > self.rect.y:
+                    move_v -= 1
+
+        if move_h > 0:
+            self.rect.x += MOVE_SPEED
+        elif move_h < 0:
+            self.rect.x -= MOVE_SPEED
+        if move_v > 0:
+            self.rect.y += MOVE_SPEED
+        elif move_v < 0:
+            self.rect.y -= MOVE_SPEED
+
+        return collisions
+
 
 class Player(Actor):
     """main character class"""
@@ -378,10 +413,10 @@ class Player(Actor):
 
     def update(self,
                time,
+               blocks=[],
                horizontal=0,
                vertical=0,
                action=False,
-               blocks=[],
                directcall=False):
 
         if not directcall:
@@ -433,36 +468,6 @@ class Player(Actor):
             self.bomb_radius += 1
             return bomb
 
-    def collide(self, list_of_sprites_group):
-        """static objects collisions processing
-        moving through walls here"""
-        move_h = move_v = 0
-
-        for sprites_group in list_of_sprites_group:
-
-            collide_list = sprite.spritecollide(self, sprites_group, False)
-            for collision in collide_list:
-                if collision.rect.x < self.rect.x:
-                    move_h += 1
-
-                if collision.rect.x > self.rect.x:
-                    move_h -= 1
-
-                if collision.rect.y < self.rect.y:
-                    move_v += 1
-
-                if collision.rect.y > self.rect.y:
-                    move_v -= 1
-
-        if move_h > 0:
-            self.rect.x += MOVE_SPEED
-        elif move_h < 0:
-            self.rect.x -= MOVE_SPEED
-        if move_v > 0:
-            self.rect.y += MOVE_SPEED
-        elif move_v < 0:
-            self.rect.y -= MOVE_SPEED
-
     def draw(self, surface):
         """draw himself onto the surface"""
         surface.blit(self.image, self.rect)
@@ -470,6 +475,102 @@ class Player(Actor):
     def is_alive(self):
         """check sprite not collided with death-ray from Explosion()"""
         return self.alive
+
+
+class Enemy(Actor):
+    """enemy abstract class"""
+    def __init__(self, x, y, sprites_tile):
+        super().__init__(x, y, sprites_tile)
+
+    def update(self, time, blocks):
+        if not self.xvel and not self.yvel:
+            if randint(0, 1):
+                self.xvel = randint(-1, 1)
+            else:
+                self.yvel = randint(-1, 1)
+
+        if not self.alive:
+            self.xvel = self.yvel = 0
+            # self.kill()
+
+        self.animation_timeout += time
+
+        if self.animation_timeout / 1000 >= 1 / ANIMATION_RATE:
+            self.animation_timeout = 0
+            if self.xvel > 0:
+                self.image = next(self.anim_right)
+            elif self.xvel < 0:
+                self.image = next(self.anim_left)
+            elif self.yvel > 0:
+                self.image = next(self.anim_down)
+            elif self.yvel < 0:
+                self.image = next(self.anim_up)
+            else:
+                self.image = self.static_image
+            if not self.alive:
+                if self.anim_die:
+                    self.image = self.anim_die.pop()
+                else:
+                    self.kill()
+
+        self.rect.y += self.yvel * MOVE_SPEED
+        self.rect.x += self.xvel * MOVE_SPEED
+
+        collisions = self.collide(blocks)
+        if collisions:
+            self.xvel = self.yvel = 0
+
+        for collision in collisions:
+            if isinstance(collision, Player):
+                collision.exploded()
+
+
+class Ballom(Enemy):
+    """Ballom enemy class"""
+    def __init__(self, x, y, sprites_tile):
+        super().__init__(x, y, sprites_tile)
+        self.image = self.static_image = sprites_tile[15][0]
+        self.anim_right = cycle(sprites_tile[15][0:3])
+        self.anim_left = cycle(sprites_tile[15][3:6])
+        self.anim_up = self.anim_left
+        self.anim_down = self.anim_right
+        self.anim_die = sprites_tile[15][10:5:-1]
+
+
+class Onil(Enemy):
+    """O'Neal enemy class"""
+    def __init__(self, x, y, sprites_tile):
+        super().__init__(x, y, sprites_tile)
+        self.image = self.static_image = sprites_tile[16][0]
+        self.anim_right = cycle(sprites_tile[16][0:3])
+        self.anim_left = cycle(sprites_tile[16][3:6])
+        self.anim_up = self.anim_left
+        self.anim_down = self.anim_right
+        self.anim_die = sprites_tile[16][6:7] * 3
+
+
+class Dahl(Enemy):
+    """Dahl enemy class"""
+    def __init__(self, x, y, sprites_tile):
+        super().__init__(x, y, sprites_tile)
+        self.image = self.static_image = sprites_tile[17][0]
+        self.anim_right = cycle(sprites_tile[17][0:3])
+        self.anim_left = cycle(sprites_tile[17][3:6])
+        self.anim_up = self.anim_left
+        self.anim_down = self.anim_right
+        self.anim_die = sprites_tile[17][10:5:-1]
+
+
+class Doria(Enemy):
+    """Doria enemy class"""
+    def __init__(self, x, y, sprites_tile):
+        super().__init__(x, y, sprites_tile)
+        self.image = self.static_image = sprites_tile[19][0]
+        self.anim_right = cycle(sprites_tile[19][0:3])
+        self.anim_left = cycle(sprites_tile[19][3:6])
+        self.anim_up = self.anim_left
+        self.anim_down = self.anim_right
+        self.anim_die = sprites_tile[18][10:6:-1] + sprites_tile[19][6:7]
 
 
 class SpriteSheet:
@@ -602,7 +703,7 @@ def main():
                 block = BrickBlock(field_width,
                                    field_height,
                                    sprites_tile=sprites_tile)
-            elif cell == '_' and not randint(0, 2):
+            elif cell == '_' and not randint(0, 3):
                 block = BrickBlock(field_width,
                                    field_height,
                                    sprites_tile=sprites_tile)
@@ -622,6 +723,22 @@ def main():
                                      sprites_tile=sprites_tile,
                                      timer=randint(30, 120),
                                      radius=randint(5, 10)))
+            elif cell == 'b':
+                actors_group.add(Ballom(field_width,
+                                        field_height,
+                                        sprites_tile=sprites_tile))
+            elif cell == 'o':
+                actors_group.add(Onil(field_width,
+                                        field_height,
+                                        sprites_tile=sprites_tile))
+            elif cell == 'd':
+                actors_group.add(Dahl(field_width,
+                                        field_height,
+                                        sprites_tile=sprites_tile))
+            elif cell == 'r':
+                actors_group.add(Doria(field_width,
+                                        field_height,
+                                        sprites_tile=sprites_tile))
             if block:
                 blocks_group.add(block)
             field_width += BLOCK_WIDTH
@@ -672,17 +789,18 @@ def main():
                     vertical = 0
 
         ret = player.update(milliseconds,
+                            (blocks_group, bombs_group, actors_group),
                             horizontal,
                             vertical,
                             action,
-                            (blocks_group, bombs_group, actors_group),
                             directcall=True)
         blocks_group.update(milliseconds)
         bombs_group.update(milliseconds)
         explosions_group.update(milliseconds, (blocks_group,
                                                actors_group,
                                                bombs_group))
-        actors_group.update(milliseconds)
+        actors_group.update(milliseconds, 
+                            (blocks_group, bombs_group, actors_group))
 
         if ret:
             if isinstance(ret, Bomb):
@@ -740,7 +858,8 @@ def main():
                         (display_w // 2 - fail_screen.get_width() // 2,
                          display_h // 2 - fail_screen.get_height() // 2))
 
-        elif not blocks_group.contains_sprite_of_class(BrickBlock):
+        elif not blocks_group.contains_sprite_of_class(BrickBlock) and \
+             len(actors_group) == 1:
             if sfx_back_playing:
                 sfx_back_playing = False
                 sfx_back.fadeout(25)
