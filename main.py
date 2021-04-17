@@ -31,43 +31,31 @@ SOUND_STEP = "./media/sfx_5.wav"
 SOUND_PLANT = "./media/sfx_3.wav"
 SOUND_BLAST = "./media/sfx_4.wav"
 
-DEMO_FIELD = """###############
-                #P+___________#
-                #+#_#_#_#_#b#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #_____oo______#
-                #_#_#_#_#_#_#_#
-                #__b______b___#
-                #_#_#_#_#_#_#_#
-                #__o______b___#
-                #_#_#_#_#_#_#_#
-                #__o_______b__#
-                #######B#######
-                #_____________#
-                #_#r#_#_#_#_#_#
-                #_____r_______#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#r#r#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #___d_________#
-                #_#_#_#_#_#_#_#
-                #_________r___#
-                #######B#######
-                #__r______d___#
-                #_#_#_#_#_#_#_#
-                #_____________#
-                #_#_#_#_#b#_#_#
-                #_____________#
-                #_#_#_#_#_#_#_#
-                #__o____b_____#
-                #_#_#_#_#_#_#_#
-                #________r____#
-                #_#r#_#_#_#_#_#
-                #_____________#
-                ###############"""
+DEMO_FIELD = """#############################
+                #P+B__________#_____ror_____#
+                #+#_#_#_#_#b#_#_#_#_#_#_#_#_#
+                #B____________#_____o_____r_#
+                #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+                #_____oo______#_______bd____#
+                #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+                #__b______b___#____bd_______#
+                #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+                #__o______b___#_d_________b_#
+                #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+                #__o_______b__#_____________#
+                #######B#############B#######
+                #_____________#__r______d___#
+                #_#r#_#_#_#_#_#_#_#_#_#_#_#_#
+                #_____r_______#_____________#
+                #_#_#_#_#_#_#_#_#_#_#_#b#_#_#
+                #_____________#_____________#
+                #_#_#_#_#r#r#_B_#_#_#_#_#_#_#
+                #_____________#__o____b_____#
+                #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+                #___d_________#________r____#
+                #_#_#_#_#_#_#_#_#r#_#_#_#_#_#
+                #_________r___#_____________#
+                #############################"""
 
 
 def make_level(width, height):
@@ -156,6 +144,7 @@ class Bomb(Block):
         self.sfx_plant.play()
 
     def update(self, time):
+        """tick-tock-tick-tock~"""
         self.animation_timeout += time
         self.countdown -= time / 1000
         self.animation_rate = ANIMATION_RATE / (self.countdown + .5)
@@ -170,6 +159,7 @@ class Bomb(Block):
         return self.rect.x, self.rect.y
 
     def get_explosion(self):
+        """replacing himsef on field with Explosion()"""
         self.sfx_plant.fadeout(25)
         self.kill()
         return Explosion(*self.get_epicenter(),
@@ -189,7 +179,7 @@ class Explosion(Block):
             self.radius = kwargs["radius"]
         self.rays_lengths = [self.radius] * 4
 
-        self.blast_speed = 10
+        self.blast_speed = 25
         self.time = 0
 
         # directions of rays:
@@ -479,9 +469,6 @@ class Player(Actor):
 
 class Enemy(Actor):
     """enemy abstract class"""
-    def __init__(self, x, y, sprites_tile):
-        super().__init__(x, y, sprites_tile)
-
     def update(self, time, blocks):
         if not self.xvel and not self.yvel:
             if randint(0, 1):
@@ -690,59 +677,55 @@ def main():
     actors_group = ShiftableSpriteGroup()
 
     player = None
-    field_width = field_height = 0
+    field_height = len(DEMO_FIELD.split('\n')) * BLOCK_HEIGHT
+    field_width = max(map(len, DEMO_FIELD
+                          .replace('\r', '')
+                          .replace(' ', '')
+                          .split('\n'))) * BLOCK_WIDTH
+    print(field_width, field_height)
+    x = y = 0
     for row in DEMO_FIELD.replace('\r', '').split('\n'):
-        field_width = 0
+        x = 0
         for cell in row.strip():
             block = None
             if cell == '#':
-                block = WallBlock(field_width,
-                                  field_height,
+                block = WallBlock(x, y,
                                   sprites_tile=sprites_tile)
             elif cell == 'B':
-                block = BrickBlock(field_width,
-                                   field_height,
+                block = BrickBlock(x, y,
                                    sprites_tile=sprites_tile)
             elif cell == '_' and not randint(0, 3):
-                block = BrickBlock(field_width,
-                                   field_height,
+                block = BrickBlock(x, y,
                                    sprites_tile=sprites_tile)
             elif cell == 'P' and not player:
-                player = Player(field_width,
-                                field_height,
+                player = Player(x, y,
                                 sprites_tile=sprites_tile)
             elif cell == 'q':
-                bombs_group.add(Bomb(field_width,
-                                     field_height,
+                bombs_group.add(Bomb(x, y,
                                      sprites_tile=sprites_tile,
                                      timer=randint(5, 60),
                                      radius=randint(1, 3)))
             elif cell == 'Q':
-                bombs_group.add(Bomb(field_width,
-                                     field_height,
+                bombs_group.add(Bomb(x, y,
                                      sprites_tile=sprites_tile,
                                      timer=randint(30, 120),
                                      radius=randint(5, 10)))
             elif cell == 'b':
-                actors_group.add(Ballom(field_width,
-                                        field_height,
+                actors_group.add(Ballom(x, y,
                                         sprites_tile=sprites_tile))
             elif cell == 'o':
-                actors_group.add(Onil(field_width,
-                                        field_height,
-                                        sprites_tile=sprites_tile))
+                actors_group.add(Onil(x, y,
+                                      sprites_tile=sprites_tile))
             elif cell == 'd':
-                actors_group.add(Dahl(field_width,
-                                        field_height,
-                                        sprites_tile=sprites_tile))
+                actors_group.add(Dahl(x, y,
+                                      sprites_tile=sprites_tile))
             elif cell == 'r':
-                actors_group.add(Doria(field_width,
-                                        field_height,
-                                        sprites_tile=sprites_tile))
+                actors_group.add(Doria(x, y,
+                                       sprites_tile=sprites_tile))
             if block:
                 blocks_group.add(block)
-            field_width += BLOCK_WIDTH
-        field_height += BLOCK_HEIGHT
+            x += BLOCK_WIDTH
+        y += BLOCK_HEIGHT
 
     field_center = (field_width // 2 - BLOCK_WIDTH // 2,
                     field_height // 2 - BLOCK_HEIGHT // 2)
@@ -762,8 +745,15 @@ def main():
             if event.type == pg.QUIT:
                 raise SystemExit
             if event.type == pg.KEYDOWN:
-                if event.key == pg.K_q or event.key == pg.K_ESCAPE:
+                if event.key == pg.K_q:
                     raise SystemExit
+                if event.key == pg.K_ESCAPE:
+                    if pg.display.Info().current_w == WIN_WIDTH and \
+                       pg.display.Info().current_h == WIN_HEIGHT:
+                        raise SystemExit
+                    else:
+                        pg.display.toggle_fullscreen()
+                        pg.display.set_mode(DISPLAY)
                 if event.key == pg.K_f:
                     if pg.display.Info().current_w == WIN_WIDTH and \
                        pg.display.Info().current_h == WIN_HEIGHT:
@@ -799,7 +789,7 @@ def main():
         explosions_group.update(milliseconds, (blocks_group,
                                                actors_group,
                                                bombs_group))
-        actors_group.update(milliseconds, 
+        actors_group.update(milliseconds,
                             (blocks_group, bombs_group, actors_group))
 
         if ret:
@@ -859,7 +849,7 @@ def main():
                          display_h // 2 - fail_screen.get_height() // 2))
 
         elif not blocks_group.contains_sprite_of_class(BrickBlock) and \
-             len(actors_group) == 1:
+                len(actors_group) == 1:
             if sfx_back_playing:
                 sfx_back_playing = False
                 sfx_back.fadeout(25)
