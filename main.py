@@ -682,7 +682,7 @@ def main():
                           .replace('\r', '')
                           .replace(' ', '')
                           .split('\n'))) * BLOCK_WIDTH
-    print(field_width, field_height)
+
     x = y = 0
     for row in DEMO_FIELD.replace('\r', '').split('\n'):
         x = 0
@@ -703,13 +703,13 @@ def main():
             elif cell == 'q':
                 bombs_group.add(Bomb(x, y,
                                      sprites_tile=sprites_tile,
-                                     timer=randint(5, 60),
-                                     radius=randint(1, 3)))
+                                     timer=5,
+                                     radius=1))
             elif cell == 'Q':
                 bombs_group.add(Bomb(x, y,
                                      sprites_tile=sprites_tile,
-                                     timer=randint(30, 120),
-                                     radius=randint(5, 10)))
+                                     timer=25,
+                                     radius=5))
             elif cell == 'b':
                 actors_group.add(Ballom(x, y,
                                         sprites_tile=sprites_tile))
