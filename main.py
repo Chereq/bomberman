@@ -31,6 +31,8 @@ SOUND_STEP = "./media/sfx_5.wav"
 SOUND_PLANT = "./media/sfx_3.wav"
 SOUND_BLAST = "./media/sfx_4.wav"
 
+BLOCKS_PROBABILITY = 3
+
 DEMO_FIELD = """#############################
                 #P+B__________#_____ror_____#
                 #+#_#_#_#_#b#_#_#_#_#_#_#_#_#
@@ -694,7 +696,7 @@ def main():
             elif cell == 'B':
                 block = BrickBlock(x, y,
                                    sprites_tile=sprites_tile)
-            elif cell == '_' and not randint(0, 3):
+            elif cell == '_' and not randint(0, BLOCKS_PROBABILITY):
                 block = BrickBlock(x, y,
                                    sprites_tile=sprites_tile)
             elif cell == 'P' and not player:
@@ -745,7 +747,8 @@ def main():
             if event.type == pg.QUIT:
                 raise SystemExit
             if event.type == pg.KEYDOWN:
-                if event.key == pg.K_q:
+                if event.key == pg.K_q and \
+                   pg.key.get_mods() & pg.KMOD_CTRL:
                     raise SystemExit
                 if event.key == pg.K_ESCAPE:
                     if pg.display.Info().current_w == WIN_WIDTH and \
@@ -801,15 +804,17 @@ def main():
         display_h = pg.display.Info().current_h
         player_x, player_y = player.get_center_position()
         if field_width > display_w:
-            cam_shift[0] = max(min(display_w // 2 - player_x, 0),
-                               -field_width + display_w)
+            cam_shift[0] = max(min(display_w // 2 - player_x, BLOCK_WIDTH),
+                               -field_width + display_w - BLOCK_WIDTH)
         else:
             cam_shift[0] = display_w // 2 - field_width // 2
         if field_height > display_h:
-            cam_shift[1] = max(min(display_h // 2 - player_y, 0),
-                               -field_height + display_h)
+            cam_shift[1] = max(min(display_h // 2 - player_y, BLOCK_HEIGHT),
+                               -field_height + display_h - BLOCK_HEIGHT)
         else:
             cam_shift[1] = display_h // 2 - field_height // 2
+
+        print(cam_shift)
 
         screen.blit(backgroud_surface, (0, 0))
 

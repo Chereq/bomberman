@@ -20,13 +20,13 @@ On Windows:
 
 
 ### Controls
-| Key    | Action |
-| ------ | ----------- |
-| Arrows | Hero movement |
-| Space  | Place rapid unscheduled disassembly device |
-| F      | Fullscreen-mode |
-| Esc    | Exit fullscreen mode; Exit |
-| Q      | Quit |
+| Key      | Action |
+| -------- | ----------- |
+| Arrows   | Hero movement |
+| Space    | Place rapid unscheduled disassembly device |
+| F        | Fullscreen-mode |
+| Esc      | Exit fullscreen mode; Quit |
+| Ctrl + Q | Quit |
 
 ### Goal
 The goal of game is simple. Just clean the field.
