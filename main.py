@@ -814,8 +814,6 @@ def main():
         else:
             cam_shift[1] = display_h // 2 - field_height // 2
 
-        print(cam_shift)
-
         screen.blit(backgroud_surface, (0, 0))
 
         for bomb in bombs_group:
