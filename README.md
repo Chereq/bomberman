@@ -1,5 +1,7 @@
-# bomberman
+# Demolition expert 
 Oldschool arcade parody with PyGame
+
+![DeX screenshot](https://gist.githubusercontent.com/Chereq/90734df9616d8cee36e600916db0a781/raw/8a8d7a0033ed6ad3b15af5f9b7a4b19c493725c1/DeX.png)
 
 ## Usage
 
