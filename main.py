@@ -142,8 +142,11 @@ class Bomb(Block):
         self.anim_static = cycle(sprites_tile[3][0:3] +
                                  sprites_tile[3][2:-1:-1])
         self.anim_die = sprites_tile[3][5:11]
-        self.sfx_plant = pg.mixer.Sound(SOUND_PLANT)
-        self.sfx_plant.play()
+        try:
+            self.sfx_plant = pg.mixer.Sound(SOUND_PLANT)
+            self.sfx_plant.play()
+        except pg.error:
+            pass
 
     def update(self, time):
         """tick-tock-tick-tock~"""
@@ -162,7 +165,10 @@ class Bomb(Block):
 
     def get_explosion(self):
         """replacing himsef on field with Explosion()"""
-        self.sfx_plant.fadeout(25)
+        try:
+            self.sfx_plant.fadeout(25)
+        except AttributeError:
+            pass
         self.kill()
         return Explosion(*self.get_epicenter(),
                          sprites_tile=self.sprites_tile,
@@ -206,8 +212,11 @@ class Explosion(Block):
 
         self.splash_group = ShiftableSpriteGroup()
 
-        self.sfx_blast = pg.mixer.Sound(SOUND_BLAST)
-        self.sfx_blast.play()
+        try:
+            self.sfx_blast = pg.mixer.Sound(SOUND_BLAST)
+            self.sfx_blast.play()
+        except pg.error:
+            pass
 
     def set_blocking_groups(self, groups):
         self.blocking_groups = groups
@@ -247,7 +256,10 @@ class Explosion(Block):
         if not self.anim_center:
             self.image = self.static_image
             self.splash_group.empty()
-            self.sfx_blast.fadeout(25)
+            try:
+                self.sfx_blast.fadeout(25)
+            except AttributeError:
+                pass
             self.kill()
             return
 
@@ -399,8 +411,11 @@ class Player(Actor):
             self.anim_died = cycle(self.anim_died + self.anim_died[::-1])
         self.bomb_timer = 3
         self.bomb_radius = 1
-        self.sfx_step = pg.mixer.Sound(SOUND_STEP)
-        self.sfx_step.set_volume(.50)
+        try:
+            self.sfx_step = pg.mixer.Sound(SOUND_STEP)
+            self.sfx_step.set_volume(.50)
+        except pg.error:
+            pass
         self.steps_count = 0
 
     def update(self,
@@ -441,8 +456,11 @@ class Player(Actor):
                     self.image = next(self.anim_died)
 
             if (self.xvel or self.yvel) and self.steps_count >= 2:
-                self.sfx_step.fadeout(50)
-                self.sfx_step.play()
+                try:
+                    self.sfx_step.fadeout(50)
+                    self.sfx_step.play()
+                except AttributeError:
+                    pass
                 self.steps_count = 0
             self.steps_count += 1
 
@@ -450,7 +468,7 @@ class Player(Actor):
         self.rect.x += self.xvel * MOVE_SPEED
         self.collide(blocks)
 
-        if action and self.alive:
+        if action and self.alive and not pg.sprite.spritecollide(self, blocks[1], False):
             x, y = get_closer_center(self.rect.x, self.rect.y)
             bomb = Bomb(x, y,
                         sprites_tile=self.sprites_tile,
@@ -647,13 +665,16 @@ def main():
     timer = pg.time.Clock()
     screen = pg.display.set_mode(DISPLAY)
 
-    # init sound subsystem and prepare some sounds
-    pg.mixer.init(44100, 16, 2)
-    sfx_back = pg.mixer.Sound(SOUND_THEME)
-    sfx_win = pg.mixer.Sound(SOUND_WIN)
-    sfx_fail = pg.mixer.Sound(SOUND_FAIL)
-    sfx_back.play(loops=-1)
-    sfx_back_playing = True
+    try:
+        # init sound subsystem and prepare some sounds
+        pg.mixer.init(44100, 16, 2)
+        sfx_back = pg.mixer.Sound(SOUND_THEME)
+        sfx_win = pg.mixer.Sound(SOUND_WIN)
+        sfx_fail = pg.mixer.Sound(SOUND_FAIL)
+        sfx_back.play(loops=-1)
+        sfx_back_playing = True
+    except pg.error:
+        pass
 
     backgroud_surface = pg.Surface(pg.display.list_modes()[0])
     backgroud_surface.fill(pg.Color(BACKGROUND_COLOR))
@@ -842,21 +863,27 @@ def main():
         actors_group.draw(screen)
 
         if not player.is_alive():
-            if sfx_back_playing:
-                sfx_back_playing = False
-                sfx_back.fadeout(25)
-                sfx_win.fadeout(25)
-                sfx_fail.play()
+            try:
+                if sfx_back_playing:
+                    sfx_back_playing = False
+                    sfx_back.fadeout(25)
+                    sfx_win.fadeout(25)
+                    sfx_fail.play()
+            except UnboundLocalError:
+                pass
             screen.blit(fail_screen,
                         (display_w // 2 - fail_screen.get_width() // 2,
                          display_h // 2 - fail_screen.get_height() // 2))
 
         elif not blocks_group.contains_sprite_of_class(BrickBlock) and \
                 len(actors_group) == 1:
-            if sfx_back_playing:
-                sfx_back_playing = False
-                sfx_back.fadeout(25)
-                sfx_win.play()
+            try:
+                if sfx_back_playing:
+                    sfx_back_playing = False
+                    sfx_back.fadeout(25)
+                    sfx_win.play()
+            except UnboundLocalError:
+                pass
             screen.blit(win_screen,
                         (display_w // 2 - win_screen.get_width() // 2,
                          display_h // 2 - win_screen.get_height() // 2))
